@@ -255,6 +255,27 @@
     }
 }
 
+/* A window behind the front one, as on macOS: grey traffic lights (their colour returns on hover) and
+   slightly faded content. Only the content fades, never the glass itself, which would lose its blur. */
+.desktop-window__body {
+    transition: opacity 150ms;
+}
+
+.desktop-window--inactive {
+    & .desktop-window__body {
+        opacity: 0.85;
+    }
+
+    & .ben-traffic-lights:not(:hover) .ben-traffic-light {
+        background-color: rgb(0 0 0 / 0.14) !important;
+        box-shadow: none;
+    }
+}
+
+[theme='dark'] .desktop-window--inactive .ben-traffic-lights:not(:hover) .ben-traffic-light {
+    background-color: rgb(255 255 255 / 0.18) !important;
+}
+
 /* Windows fade and scale in when they open. */
 .desktop-window {
     animation: desktop-window-open 140ms ease-out;

@@ -25,6 +25,10 @@ let windowCount = 0
 /** A new, unique window id for an app. */
 export const newWindowId = (appId: AppId): WindowId => `${appId}-${++windowCount}`
 
+/** Sorts windows by when they were opened (the number at the end of their id). */
+export const byOpeningOrder = (a: WindowState, b: WindowState): number =>
+    Number(a.id.slice(a.id.lastIndexOf('-') + 1)) - Number(b.id.slice(b.id.lastIndexOf('-') + 1))
+
 export interface WindowState {
     id: WindowId
     /** Which app the window belongs to. */

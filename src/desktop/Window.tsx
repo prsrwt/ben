@@ -74,6 +74,8 @@ export function Window({ state, zIndex, isFocused, isMobile, children }: WindowP
             className={cn(
                 // Matte glass: a translucent, finely grained surface that softly blurs the wallpaper (desktop.css).
                 'desktop-window desktop-glass absolute flex flex-col overflow-hidden',
+                // Behind another window: grey traffic lights and slightly faded content (desktop.css).
+                !isFocused && 'desktop-window--inactive',
                 isMobile ? 'rounded-none' : 'rounded-3xl',
                 // Deep, soft shadow for the front window; a lighter one for windows behind it.
                 isFocused

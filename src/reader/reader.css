@@ -54,7 +54,8 @@
     }
 }
 
-/* The margins either side of the pages: click to turn. A faint chevron shows on hover. */
+/* The margins either side of the pages: click to turn. Their arrows show whenever the pointer is over the
+   page (in any window, front or behind), and brighten over their own margin. None on the first or last page. */
 .reader-book__edge {
     cursor: default;
     background: none;
@@ -64,26 +65,32 @@
         content: '';
         position: absolute;
         top: 50%;
-        width: 10px;
-        height: 10px;
-        border: solid var(--ben-text-3);
-        border-width: 0 0 2px 2px;
+        width: 14px;
+        height: 14px;
+        margin-top: -7px;
+        border: solid var(--ben-text-2);
+        border-width: 0 0 2.5px 2.5px;
+        border-radius: 1px;
         opacity: 0;
         transition: opacity 150ms;
     }
+}
 
-    &:hover:not(:disabled)::after {
-        opacity: 0.8;
-    }
+.reader-book:hover .reader-book__edge:not(:disabled)::after {
+    opacity: 0.45;
+}
+
+.reader-book .reader-book__edge:hover:not(:disabled)::after {
+    opacity: 1;
 }
 
 .reader-book__edge--back::after {
-    right: 22px;
+    right: 20px;
     transform: rotate(45deg);
 }
 
 .reader-book__edge--next::after {
-    left: 22px;
+    left: 20px;
     transform: rotate(-135deg);
 }
 

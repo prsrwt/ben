@@ -13,7 +13,7 @@ import { BenIsland } from './BenIsland'
 import { BenView } from './BenView'
 import { Window } from './Window'
 import { WindowContent } from './windowContent'
-import { DESKTOP_TOP, windowsLogic } from './windowsLogic'
+import { DESKTOP_TOP, byOpeningOrder, windowsLogic } from './windowsLogic'
 
 /** Below this width windows go full screen and icons form a grid. */
 const NARROW_QUERY = '(max-width: 767px)'
@@ -93,11 +93,14 @@ export function Desktop(): JSX.Element {
                 </>
             )}
 
-            {windows.map((state, index) => (
+            {/* Drawn in the order they were opened, with only their stacking number following the front-to-back
+                order: bringing a window forward then never moves it on the page, which would restart its opening
+                animation (a bounce) and lose the click that brought it forward. */}
+            {[...windows].sort(byOpeningOrder).map((state) => (
                 <Window
                     key={state.id}
                     state={state}
-                    zIndex={10 + index}
+                    zIndex={10 + windows.indexOf(state)}
                     isFocused={state.id === focusedId}
                     isMobile={isMobile}
                 >
