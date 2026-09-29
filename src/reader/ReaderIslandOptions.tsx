@@ -1,5 +1,5 @@
 // The Reader's options on Ben Island (right of the search bar), shown while a Reader window is in front:
-// back and forward. Alt+← / Alt+→ and the mouse's side buttons do the same while it's shown.
+// back and forward. Alt+← / Alt+→ (either Alt key) and the mouse's side buttons do the same while it's shown.
 
 import { useActions, useValues } from 'kea'
 import { useEffect } from 'react'
@@ -24,7 +24,10 @@ export function ReaderIslandOptions(): JSX.Element {
 
     useEffect(() => {
         const onKeyDown = (event: KeyboardEvent): void => {
-            if (event.altKey && (event.key === 'ArrowLeft' || event.key === 'ArrowRight')) {
+            // Either Alt key: on layouts such as English (India) the right one is AltGr, which browsers
+            // report as its own modifier rather than as Alt.
+            const alt = event.altKey || event.getModifierState('AltGraph')
+            if (alt && (event.key === 'ArrowLeft' || event.key === 'ArrowRight')) {
                 event.preventDefault()
                 if (event.key === 'ArrowLeft') {
                     back()
