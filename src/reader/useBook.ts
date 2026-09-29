@@ -37,6 +37,8 @@ export interface Book {
     turn: (direction: 1 | -1) => void
     /** Turns to the page holding an element (for links to a part of the article). */
     showElement: (element: Element) => void
+    /** The page (from 0) where an element starts, in the current layout. */
+    pageOf: (element: Element) => number
     /** Counts the pages again, after something inside changed size (an image loaded, Details opened). */
     recount: () => void
 }
@@ -187,19 +189,33 @@ export function useBook(bookRef: RefObject<HTMLElement>, articleRef: RefObject<H
         [articleRef, goTo, layout, stride]
     )
 
-    // Images arriving and Details opening change how many pages there are.
+    const pageOf = useCallback(
+        (element: Element): number => {
+            const article = articleRef.current
+            const rect = element.getClientRects()[0]
+            return article && rect ? columnAt(rect.left, article, stride) : 0
+        },
+        [articleRef, stride]
+    )
+
+    // Images arriving and Details opening move the text onto other pages: count them again, and keep the
+    // passage being read on screen.
     useEffect(() => {
         const article = articleRef.current
         if (!article) {
             return
         }
-        article.addEventListener('load', recount, true)
-        article.addEventListener('toggle', recount, true)
-        return () => {
-            article.removeEventListener('load', recount, true)
-            article.removeEventListener('toggle', recount, true)
+        const onResized = (): void => {
+            recount()
+            returnToPlace()
         }
-    }, [articleRef, recount])
+        article.addEventListener('load', onResized, true)
+        article.addEventListener('toggle', onResized, true)
+        return () => {
+            article.removeEventListener('load', onResized, true)
+            article.removeEventListener('toggle', onResized, true)
+        }
+    }, [articleRef, recount, returnToPlace])
 
-    return { layout, page: shownPage, pageCount, turning, turn, showElement, recount }
+    return { layout, page: shownPage, pageCount, turning, turn, showElement, pageOf, recount }
 }

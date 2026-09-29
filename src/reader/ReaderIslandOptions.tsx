@@ -1,11 +1,13 @@
-// The Reader's options on Ben Island (right of the search bar), for the Reader window in front:
-// back and forward. Alt+← / Alt+→ (either Alt key) and the mouse's side buttons do the same while it's shown.
+// The Reader's options on Ben Island (right of the search bar), for the Reader window in front: back and
+// forward, and Contents. Alt+← / Alt+→ (either Alt key) and the mouse's side buttons also go back and forward
+// while it's shown.
 
 import { useActions, useValues } from 'kea'
 import { useEffect } from 'react'
 
 import { WindowId } from '~/desktop/windowsLogic'
 
+import { ContentsButton } from './ContentsMenu'
 import { readerLogic, readerWindowState } from './readerLogic'
 
 /** A small chevron, drawn inline; points left for back, right for forward. */
@@ -21,7 +23,7 @@ const BUTTON =
     'size-7 flex items-center justify-center rounded text-secondary enabled:hover:text-primary enabled:hover:bg-hover disabled:opacity-35 focus-visible:outline-2 focus-visible:outline-current'
 
 export function ReaderIslandOptions({ windowId }: { windowId: WindowId }): JSX.Element {
-    const { canGoBack, canGoForward } = readerWindowState(useValues(readerLogic).histories, windowId)
+    const { current, canGoBack, canGoForward } = readerWindowState(useValues(readerLogic).histories, windowId)
     const { back, forward } = useActions(readerLogic)
 
     useEffect(() => {
@@ -65,6 +67,8 @@ export function ReaderIslandOptions({ windowId }: { windowId: WindowId }): JSX.E
             <button type="button" className={BUTTON} onClick={() => forward(windowId)} disabled={!canGoForward} title="Forward (Alt+→)" aria-label="Forward" data-attr="reader-forward">
                 <Chevron direction="right" />
             </button>
+            <span className="w-1.5" />
+            <ContentsButton windowId={windowId} enabled={current?.status === 'ready'} />
         </div>
     )
 }

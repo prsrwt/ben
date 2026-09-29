@@ -5,7 +5,7 @@ styled as a small desktop with matte-glass windows. It is not a general web brow
 remove clutter and distraction from studying online. Planned apps, each still an empty window:
 
 - **Reader:** paste a link, get a clean article rendered as a book (pagination, clickable index). Being built:
-  clean article, clean-up, back/forward, pages and keeping your place are done; the clickable index is next.
+  clean article, clean-up, back/forward, pages, keeping your place and Contents are done.
 - **History:** every page read in the Reader (link, title, time; not the article), grouped by day, kept
   across restarts in localStorage `ben.history` (last 1,000). Built.
 - **Library:** saved articles and notes in folders, stored as plain files the user owns.
@@ -36,7 +36,7 @@ Build one app at a time, only when the user asks. Everything else stays empty.
   (`BenIsland.tsx`): full width, flush to the top edge, macOS-menu-bar style. Cat icon + "Ben" on the left,
   a small pill search bar in the centre (Ctrl+K focuses it; submitting a link opens it in the Reader, other
   text does nothing yet). Just right of the search bar sit the front window's app options (Reader: back and
-  forward). Just left of it sits the apps pill (`IslandApps.tsx`): an
+  forward, then the Contents pill: icon + the section being read; click lists sections with page numbers). Just left of it sits the apps pill (`IslandApps.tsx`): an
   icon per app with open windows, a count on top when it has several; clicking one lists its windows
   (plus, for the Reader, the last 5 pages read that aren't open, and "Show all history"). Then the theme
   button and traffic lights on the right. Empty space on the bar drags the app (`data-tauri-drag-region`).
@@ -63,7 +63,9 @@ Build one app at a time, only when the user asks. Everything else stays empty.
   margins. Page numbers under each page. Headings carry an invisible 4em tail so they never end a page.
   The reading place is kept as a passage (index of the first block starting on the page), not a page
   number, so resizing, one page <-> two, and back/forward (kept per page id in `ReaderView.tsx`) all return
-  to the same passage. A turn is a short sideways slide (220 ms). A 3D "door" flip and an Apple Books-style paper fold were tried
+  to the same passage, and so do pictures arriving late. A turn is a short sideways slide (220 ms). Contents
+  (`ContentsMenu.tsx`) reads each window's book through `openBooks.ts` (a registry, plus a small store for
+  the current section that the pill subscribes to). A 3D "door" flip and an Apple Books-style paper fold were tried
   and dropped on 2026-09-30: an opaque turning sheet looks like a solid slab on the frosted-glass pages.
   Article text is Literata (`@fontsource-variable/literata`, ~52 KB upright + ~54 KB italic for Latin).
 - **Scrollbar:** the native one is hidden; `WindowScrollbar.tsx` draws a grey pill clear of the rounded
@@ -103,7 +105,7 @@ Only these came from PostHog, copied so the theme menu looks and behaves exactly
 LemonMenu. Keep them identical unless asked:
 
 - `posthog-menu.css`: the Popover, LemonButton (tertiary, small) and h5 rules, with tokens resolved.
-- `useKeyboardNavigation.ts`: LemonMenu's arrow-key hook, unchanged. (oxlint warns about reading a ref during render in `ThemeMenu.tsx`, `IslandApps.tsx` and `LinkMenu.tsx`; that is PostHog's own pattern and safe here. The hook sizes its item list once, so `IslandApps` remounts its menu when the item count changes.)
+- `useKeyboardNavigation.ts`: LemonMenu's arrow-key hook, unchanged. (oxlint warns about reading a ref during render in `ThemeMenu.tsx`, `IslandApps.tsx`, `LinkMenu.tsx` and `ContentsMenu.tsx`; that is PostHog's own pattern and safe here. The hook sizes its item list once, so `IslandApps` remounts its menu when the item count changes.)
 - `icons.tsx`: four `@posthog/icons` drawings (Search, Brightness, Palette, Laptop). The package itself cost ~260 KB of JS, so it is not installed.
 
 ## Commands
@@ -151,4 +153,5 @@ changes check behaviour in the real app, not only in a browser tab.
 
 - Git repository on `main` since 2026-09-29. Ask before committing.
 - Plain text in the search bar (not a link) does nothing yet.
-- Agreed plan, in order: the Reader's book layout, then its clickable index.
+- Agreed plan: a lightweight phase (measure release memory, fewer old articles kept per Reader window,
+  pictures loaded only near their page).

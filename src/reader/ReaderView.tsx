@@ -15,6 +15,7 @@ import { WindowId, windowsLogic } from '~/desktop/windowsLogic'
 
 import { Article, toArticleUrl } from './fetchArticle'
 import { LinkMenu } from './LinkMenu'
+import { ContentsEntry, openBook, registerBook, setCurrentSection } from './openBooks'
 import { readerLogic, readerWindowState } from './readerLogic'
 import { BOTTOM_MARGIN, PAGE_GAP, TOP_MARGIN, useBook } from './useBook'
 
@@ -103,7 +104,7 @@ function ArticleBook({ pageId, article, windowId }: { pageId: number; article: A
     const { openLink, openLinkBeside, openLinkInNewWindow } = useActions(readerLogic)
     const bookRef = useRef<HTMLDivElement>(null)
     const articleRef = useRef<HTMLElement>(null)
-    const { layout, page, pageCount, turning, turn, showElement } = useBook(bookRef, articleRef, {
+    const { layout, page, pageCount, turning, turn, showElement, pageOf } = useBook(bookRef, articleRef, {
         initial: readingPlaces.get(pageId) ?? null,
         onChange: (place) => readingPlaces.set(pageId, place),
     })
@@ -131,6 +132,57 @@ function ArticleBook({ pageId, article, windowId }: { pageId: number; article: A
         window.addEventListener('keydown', onKeyDown)
         return () => window.removeEventListener('keydown', onKeyDown)
     }, [isFront, turn])
+
+    // The Contents menu on the island reads this window's sections and turns to them. Re-registered on every
+    // render, so it always sees the current page and page size.
+    useEffect(() => {
+        const sections = (): Element[] => {
+            const article = articleRef.current
+            if (!article) {
+                return []
+            }
+            const headings = [...article.querySelectorAll('.reader-article__body :is(h1, h2, h3, h4)')].filter(
+                (heading) => heading.textContent?.trim()
+            )
+            const header = article.querySelector('.reader-article__header')
+            const details = article.querySelector('.reader-article__details')
+            return [...(header ? [header] : []), ...headings, ...(details ? [details] : [])]
+        }
+        return registerBook(windowId, {
+            contents: (): ContentsEntry[] => {
+                const found = sections()
+                const levels = found.map((el) => (/^H[1-4]$/.test(el.tagName) ? Number(el.tagName[1]) : 0))
+                const top = Math.min(...levels.filter((level) => level > 0))
+                // The reader is in the last section that has begun by the last page showing.
+                const lastShowing = page + (layout?.perSpread ?? 1) - 1
+                const entries = found.map((el, i) => ({
+                    title: el.matches('.reader-article__header')
+                        ? article.title
+                        : el.matches('.reader-article__details')
+                          ? 'Details'
+                          : (el.textContent ?? '').trim(),
+                    depth: levels[i] > 0 ? Math.min(2, levels[i] - top) : 0,
+                    page: pageOf(el),
+                    current: false,
+                }))
+                const current = entries.findLastIndex((entry) => entry.page <= lastShowing)
+                return entries.map((entry, i) => ({ ...entry, current: i === current }))
+            },
+            goTo: (index) => {
+                const el = sections()[index]
+                if (el) {
+                    showElement(el)
+                }
+            },
+        })
+    })
+
+    // Tell the Contents pill which section is being read, whenever the pages move.
+    useEffect(() => {
+        const current = openBook(windowId)?.contents().find((entry) => entry.current)
+        setCurrentSection(windowId, current?.title ?? null)
+    }, [windowId, page, layout, pageCount])
+    useEffect(() => () => setCurrentSection(windowId, null), [windowId])
 
     // Links inside the article never navigate Ben itself: links to a part of this page turn to it,
     // other web links open in the Reader (this window; a new one with Ctrl+click; the middle button asks:
