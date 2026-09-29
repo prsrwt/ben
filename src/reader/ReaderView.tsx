@@ -10,11 +10,11 @@ import '@fontsource-variable/literata/wght-italic.css'
 import { useActions, useValues } from 'kea'
 import { ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 
-import { cn } from '~/desktop/cn'
 import { WindowId, windowsLogic } from '~/desktop/windowsLogic'
 
 import { Article, toArticleUrl } from './fetchArticle'
 import { LinkMenu } from './LinkMenu'
+import { PageFlip } from './PageFlip'
 import { readerLogic, readerWindowState } from './readerLogic'
 import { BOTTOM_MARGIN, PAGE_GAP, TOP_MARGIN, useBook } from './useBook'
 
@@ -104,8 +104,8 @@ function turnDirection(event: KeyboardEvent): 1 | -1 | null {
     if (event.altKey || event.ctrlKey || event.metaKey) {
         return null
     }
-    const target = event.target as HTMLElement
-    if (target.closest('input, textarea, select, [contenteditable="true"], [role="menu"], [role="dialog"]')) {
+    const target = event.target instanceof Element ? event.target : null
+    if (target?.closest('input, textarea, select, [contenteditable="true"], [role="menu"], [role="dialog"]')) {
         return null
     }
     if (event.key === 'ArrowRight' || event.key === 'PageDown' || (event.key === ' ' && !event.shiftKey)) {
@@ -122,7 +122,7 @@ function ArticleBook({ article, windowId }: { article: Article; windowId: Window
     const { openLink, openLinkBeside, openLinkInNewWindow } = useActions(readerLogic)
     const bookRef = useRef<HTMLDivElement>(null)
     const articleRef = useRef<HTMLElement>(null)
-    const { layout, page, pageCount, turning, turn, showElement } = useBook(bookRef, articleRef)
+    const { layout, page, pageCount, flip, endFlip, turn, showElement } = useBook(bookRef, articleRef)
     // The middle-click menu: where it was opened, and for which link.
     const [linkMenu, setLinkMenu] = useState<{ x: number; y: number; url: string } | null>(null)
     const closeLinkMenu = useCallback(() => setLinkMenu(null), [])
@@ -241,7 +241,7 @@ function ArticleBook({ article, windowId }: { article: Article; windowId: Window
             >
                 <article
                     ref={articleRef}
-                    className={cn('reader-article reader-article--paged', turning && 'reader-article--turning')}
+                    className="reader-article reader-article--paged"
                     style={
                         layout
                             ? ({
@@ -253,6 +253,8 @@ function ArticleBook({ article, windowId }: { article: Article; windowId: Window
                                   columnGap: PAGE_GAP,
                                   transform: `translateX(${-page * stride}px)`,
                                   '--page-height': `${layout.pageHeight}px`,
+                                  // While a turn animates, its copies of the pages show instead.
+                                  visibility: flip ? 'hidden' : undefined,
                               } as React.CSSProperties)
                             : { visibility: 'hidden' }
                     }
@@ -275,6 +277,9 @@ function ArticleBook({ article, windowId }: { article: Article; windowId: Window
                     )}
                 </article>
             </div>
+            {flip && layout && articleRef.current && (
+                <PageFlip key={flip.id} flip={flip} layout={layout} article={articleRef.current} onDone={endFlip} />
+            )}
             {/* Page numbers at the foot of each page showing, as in a printed book. */}
             {layout &&
                 visiblePages.map((p, i) => (

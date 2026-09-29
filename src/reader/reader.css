@@ -44,14 +44,51 @@
     }
 }
 
-.reader-article--turning {
-    transition: transform 220ms ease-out;
+/* The page-turn animation (PageFlip.tsx), folded like paper. The flap (the folded-over part of the sheet)
+   is nearly opaque paper, lit at the crease and shaded towards its free edge; soft shadows fall on the page
+   it reveals and behind its edge. */
+/* Fully opaque: even at 97%, a large heading on the page beneath shows through. */
+.reader-fold__flap {
+    background: rgb(238 239 233) var(--ben-matte-grain);
 }
 
-@media (prefers-reduced-motion: reduce) {
-    .reader-article--turning {
-        transition: none;
-    }
+[theme='dark'] .reader-fold__flap {
+    background-color: rgb(29 31 39);
+}
+
+.reader-fold__flap-shade {
+    background: linear-gradient(
+        to left,
+        rgb(255 255 255 / 0.3) 0,
+        rgb(255 255 255 / 0) 14%,
+        rgb(0 0 0 / 0.05) 55%,
+        rgb(0 0 0 / 0.14) 100%
+    );
+}
+
+[theme='dark'] .reader-fold__flap-shade {
+    background: linear-gradient(
+        to left,
+        rgb(255 255 255 / 0.08) 0,
+        rgb(255 255 255 / 0) 14%,
+        rgb(0 0 0 / 0.12) 55%,
+        rgb(0 0 0 / 0.3) 100%
+    );
+}
+
+/* One-page view: the page's own text, seen faintly through the back of the sheet. */
+.reader-fold__through {
+    opacity: 0.12;
+}
+
+.reader-fold__crease-shadow {
+    left: 0;
+    background: linear-gradient(to right, rgb(0 0 0 / 0.2), rgb(0 0 0 / 0));
+}
+
+.reader-fold__edge-shadow {
+    left: 0;
+    background: linear-gradient(to left, rgb(0 0 0 / 0.14), rgb(0 0 0 / 0));
 }
 
 /* The margins either side of the pages: click to turn. A faint chevron shows on hover. */
