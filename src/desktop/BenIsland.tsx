@@ -35,7 +35,7 @@ export function BenIsland(): JSX.Element {
 
             {/* The apps pill, just left of the search bar (whose half-width is min(170px, 15%)). Hidden on
                 narrow screens, where there's no room beside the search bar. */}
-            <div className="absolute right-[calc(50%+min(170px,15%)+8px)] hidden sm:block">
+            <div className="island-beside island-beside--left absolute right-[calc(50%+min(170px,15%)+8px)] hidden sm:block">
                 <IslandApps />
             </div>
 
@@ -46,7 +46,7 @@ export function BenIsland(): JSX.Element {
             </div>
 
             {/* Options for the app in front, just right of the search bar (whose half-width is min(170px, 15%)). */}
-            <div className="absolute left-[calc(50%+min(170px,15%)+8px)]">
+            <div className="island-beside island-beside--right absolute left-[calc(50%+min(170px,15%)+8px)]">
                 {focusedWindow?.appId === 'reader' && <ReaderIslandOptions windowId={focusedWindow.id} />}
             </div>
 

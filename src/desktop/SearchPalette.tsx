@@ -64,6 +64,10 @@ export function IslandSearch(): JSX.Element {
             }}
             onKeyDown={(e) => e.key === 'Escape' && close()}
         >
+            {/* The notch dropping out of the bar: glass below the bar only, curving into it at both sides. */}
+            <span className="island-search__drop" aria-hidden />
+            <span className="island-search__shoulder island-search__shoulder--left" aria-hidden />
+            <span className="island-search__shoulder island-search__shoulder--right" aria-hidden />
             <label className="island-search__field">
                 <IconSearch className="island-search__icon shrink-0 text-tertiary" />
                 <input
