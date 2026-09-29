@@ -150,7 +150,8 @@
         line-height: 0;
     }
 
-    & sup > a {
+    /* Any link inside a marker, including ones wrapped in italics ("[citation needed]"). */
+    & sup a {
         color: var(--ben-text-3);
         text-decoration: none;
     }
