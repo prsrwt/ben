@@ -1,7 +1,7 @@
 # Ben
 
 Ben is a calm, single-purpose **study and reading browser** for Windows: a desktop app (Tauri 2 + React)
-styled as a small desktop with frosted-glass windows. It is not a general web browser. The goal is to
+styled as a small desktop with matte-glass windows. It is not a general web browser. The goal is to
 remove clutter and distraction from studying online. Planned apps, each still an empty window:
 
 - **Reader:** paste a link, get a clean article rendered as a book (pagination, clickable index). Next to build.
@@ -21,7 +21,7 @@ Build one app at a time, only when the user asks. Everything else stays empty.
 2. **Keep it thin.** Ben was stripped from a 34,000-line PostHog copy down to about 1,300 lines of its own.
    Add a dependency only when it earns its place, and check its bundle cost (see "Measuring"). Draw small
    UI pieces inline rather than pulling in a library.
-3. **The look is decided.** Frosted glass (island, windows, icons), Figtree font, PostHog-style theme menu.
+3. **The look is decided.** Matte glass (island, windows, icons), Figtree font, PostHog-style theme menu.
    Don't restyle without being asked.
 4. The user's global instructions apply: explain plainly, propose work as phases, and wait for approval
    before writing code.
@@ -39,9 +39,14 @@ Build one app at a time, only when the user asks. Everything else stays empty.
   window (state kept, `hidden`), and its desktop icon brings it back. Maximised windows keep an 8px gap.
 - **Scrollbar:** the native one is hidden; `WindowScrollbar.tsx` draws a grey pill clear of the rounded
   corners. (Edge's overlay scrollbars ignore CSS scrollbar styling, which is why it's drawn.)
-- **Desktop icons:** solid frosted-glass silhouettes (`GlassIcon.tsx`, a CSS mask over layers) with a
+- **Desktop icons:** solid matte-glass silhouettes (`GlassIcon.tsx`, a CSS mask over layers) with a
   hairline rim so they read on pale wallpaper. All in the left column. A PNG in `public/desktop/icons/<id>.png`
   replaces one.
+- **Matte glass** (`desktop.css`), like a nano-texture (anti-glare) screen: heavy blur, little colour
+  (`saturate(1.1)`), no shine, and a faint even grain from `public/desktop/matte-grain.webp` (a 128px tile).
+  The grain is the element's own background, so it sits under the text and letters stay sharp. It must stay
+  a pre-made image: live SVG noise (`feTurbulence`) re-runs on every repaint and made the app lag. A paper
+  texture was tried and dropped on 2026-09-29.
 - **Theme:** light / dark / "Sync with system", stored in localStorage `ben.theme` (migrated once from the
   old key `scenes.userLogic.user`). `ThemeSync.tsx` sets `<body theme="dark|light">`.
 
@@ -113,5 +118,5 @@ changes check behaviour in the real app, not only in a browser tab.
 
 ## Not done yet
 
-- No git repository. Ask before creating one or committing.
+- Git repository on `main` since 2026-09-29. Ask before committing.
 - The search bar does nothing on submit; it becomes "open a link" with the Reader.
