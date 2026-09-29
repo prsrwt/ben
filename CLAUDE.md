@@ -61,10 +61,8 @@ Build one app at a time, only when the user asks. Everything else stays empty.
   56px margins), otherwise one page (at most 680px wide). → / Space / PageDown forward, ← / Shift+Space /
   PageUp back (front Reader window only; not while focus is in a field, button or menu), and clicking the side
   margins. Page numbers under each page. Headings carry an invisible 4em tail so they never end a page.
-  Turning is animated as a paper fold (`PageFlip.tsx`, like Apple Books / Google Play Books): a crease sweeps
-  from the outer edge to the spine; the flap shows the sheet's back (next left page, or faint mirrored text in
-  one-page view). Drawn with copies of the article for 0.5 s; each frame only moves layers. Turning back plays
-  the fold in reverse. A swinging 3D "door" was tried first and dropped. Reduced motion turns instantly.
+  A turn is a short sideways slide (220 ms). A 3D "door" flip and an Apple Books-style paper fold were tried
+  and dropped on 2026-09-30: an opaque turning sheet looks like a solid slab on the frosted-glass pages.
   Article text is Literata (`@fontsource-variable/literata`, ~52 KB upright + ~54 KB italic for Latin).
 - **Scrollbar:** the native one is hidden; `WindowScrollbar.tsx` draws a grey pill clear of the rounded
   corners. (Edge's overlay scrollbars ignore CSS scrollbar styling, which is why it's drawn.)
