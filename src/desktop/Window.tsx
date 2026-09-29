@@ -26,7 +26,7 @@ export function Window({ state, zIndex, isFocused, isMobile, children }: WindowP
     const { focusWindow, closeWindow, moveWindow, toggleMaximize, minimizeWindow } = useActions(windowsLogic)
     const app = APPS[state.appId]
     const fullScreen = state.maximized || isMobile
-    // Pointer position relative to the window's top-left corner while dragging.
+    // Where the pointer holds the window while dragging, from its top-left corner (at its own size).
     const dragOffset = useRef<{ x: number; y: number } | null>(null)
     const bodyRef = useRef<HTMLDivElement>(null)
 
@@ -35,7 +35,14 @@ export function Window({ state, zIndex, isFocused, isMobile, children }: WindowP
         if (fullScreen || (e.target as HTMLElement).closest('button')) {
             return
         }
-        dragOffset.current = { x: e.clientX - state.x, y: e.clientY - state.y }
+        if (state.snapped) {
+            // A snapped window drops back to its own size under the pointer, at the same relative spot
+            // along its top, as Windows does when a snapped window is dragged away.
+            const rect = e.currentTarget.closest('section')!.getBoundingClientRect()
+            dragOffset.current = { x: ((e.clientX - rect.left) / rect.width) * state.width, y: e.clientY - rect.top }
+        } else {
+            dragOffset.current = { x: e.clientX - state.x, y: e.clientY - state.y }
+        }
         e.currentTarget.setPointerCapture(e.pointerId)
     }
 
@@ -85,7 +92,16 @@ export function Window({ state, zIndex, isFocused, isMobile, children }: WindowP
                             top: DESKTOP_TOP + MAXIMISED_GAP,
                             bottom: MAXIMISED_GAP,
                         }
-                      : { zIndex, left: state.x, top: state.y, width: state.width, height: state.height }
+                      : state.snapped
+                        ? // Side by side: half the desktop each, with the same gaps as a maximised window.
+                          {
+                              zIndex,
+                              [state.snapped]: MAXIMISED_GAP,
+                              top: DESKTOP_TOP + MAXIMISED_GAP,
+                              bottom: MAXIMISED_GAP,
+                              width: `calc(50% - ${MAXIMISED_GAP * 1.5}px)`,
+                          }
+                        : { zIndex, left: state.x, top: state.y, width: state.width, height: state.height }
             }
         >
             {/* No visible title: a transparent strip floating over the top of the content, to drag by,

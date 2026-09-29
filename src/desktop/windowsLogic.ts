@@ -34,6 +34,9 @@ export interface WindowState {
     width: number
     height: number
     maximized: boolean
+    /** Filling the left or right half of the desktop (side by side). Its own size is kept for when it's
+     *  dragged away, which un-snaps it. */
+    snapped: 'left' | 'right' | null
     /** Hidden by the yellow light, with everything inside kept as it was; its icon brings it back. */
     minimized: boolean
 }
@@ -54,6 +57,13 @@ export interface windowsLogicActions {
     /** Brings a window to the front, un-minimising it if needed. */
     focusWindow: (id: WindowId) => { id: WindowId }
     closeWindow: (id: WindowId) => { id: WindowId }
+    /** Opens a new window on the right half of the desktop and snaps `besideId` to the left half. */
+    openBeside: (
+        appId: AppId,
+        id: WindowId,
+        besideId: WindowId
+    ) => { appId: AppId; id: WindowId; besideId: WindowId; viewport: { width: number; height: number } }
+    /** Moving a window also un-snaps it. */
     moveWindow: (id: WindowId, x: number, y: number) => { id: WindowId; x: number; y: number }
     toggleMaximize: (id: WindowId) => { id: WindowId }
     minimizeWindow: (id: WindowId) => { id: WindowId }
@@ -80,6 +90,7 @@ function initialPlacement(
         x: Math.max(WINDOW_MARGIN, Math.round((viewport.width - width) / 2) + cascade),
         y: DESKTOP_TOP + WINDOW_MARGIN + Math.min(cascade, Math.max(0, availableHeight - height)),
         maximized: false,
+        snapped: null,
         minimized: false,
     }
 }
@@ -103,6 +114,12 @@ export const windowsLogic = kea<windowsLogicType>([
         }),
         focusWindow: (id: WindowId) => ({ id }),
         closeWindow: (id: WindowId) => ({ id }),
+        openBeside: (appId: AppId, id: WindowId, besideId: WindowId) => ({
+            appId,
+            id,
+            besideId,
+            viewport: { width: window.innerWidth, height: window.innerHeight },
+        }),
         moveWindow: (id: WindowId, x: number, y: number) => ({ id, x, y }),
         toggleMaximize: (id: WindowId) => ({ id }),
         minimizeWindow: (id: WindowId) => ({ id }),
@@ -125,7 +142,13 @@ export const windowsLogic = kea<windowsLogicType>([
                     return existing ? [...withoutWindow(state, id), { ...existing, minimized: false }] : state
                 },
                 closeWindow: (state, { id }) => withoutWindow(state, id),
-                moveWindow: (state, { id, x, y }) => state.map((w) => (w.id === id ? { ...w, x, y } : w)),
+                openBeside: (state, { appId, id, besideId, viewport }) => [
+                    ...state.map((w) =>
+                        w.id === besideId ? { ...w, snapped: 'left' as const, maximized: false, minimized: false } : w
+                    ),
+                    { ...initialPlacement(id, appId, state.length, viewport), snapped: 'right' as const },
+                ],
+                moveWindow: (state, { id, x, y }) => state.map((w) => (w.id === id ? { ...w, x, y, snapped: null } : w)),
                 toggleMaximize: (state, { id }) =>
                     state.map((w) => (w.id === id ? { ...w, maximized: !w.maximized } : w)),
                 minimizeWindow: (state, { id }) => state.map((w) => (w.id === id ? { ...w, minimized: true } : w)),

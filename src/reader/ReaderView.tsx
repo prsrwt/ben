@@ -3,11 +3,12 @@
 import './reader.css'
 
 import { useActions, useValues } from 'kea'
-import { ReactNode, useLayoutEffect, useRef } from 'react'
+import { ReactNode, useCallback, useLayoutEffect, useRef, useState } from 'react'
 
-import { toArticleUrl } from './fetchArticle'
 import { WindowId } from '~/desktop/windowsLogic'
 
+import { toArticleUrl } from './fetchArticle'
+import { LinkMenu } from './LinkMenu'
 import { readerLogic, readerWindowState } from './readerLogic'
 
 const hostOf = (url: string): string => new URL(url).hostname.replace(/^www\./, '')
@@ -55,8 +56,11 @@ export function ReaderView({ windowId }: { windowId: WindowId }): JSX.Element {
 
 function ReaderPageView({ windowId }: { windowId: WindowId }): JSX.Element {
     const { current } = readerWindowState(useValues(readerLogic).histories, windowId)
-    const { openLink, openLinkInNewWindow, reload } = useActions(readerLogic)
+    const { openLink, openLinkBeside, openLinkInNewWindow, reload } = useActions(readerLogic)
     const articleRef = useRef<HTMLElement>(null)
+    // The middle-click menu: where it was opened, and for which link.
+    const [linkMenu, setLinkMenu] = useState<{ x: number; y: number; url: string } | null>(null)
+    const closeLinkMenu = useCallback(() => setLinkMenu(null), [])
 
     if (current?.status === 'loading') {
         return (
@@ -90,8 +94,8 @@ function ReaderPageView({ windowId }: { windowId: WindowId }): JSX.Element {
     }
 
     // Links inside the article never navigate Ben itself: links to a part of this page scroll there,
-    // other web links open in the Reader (this window; a new one with Ctrl+click or the middle button),
-    // anything else does nothing.
+    // other web links open in the Reader (this window; a new one with Ctrl+click; the middle button asks:
+    // new window or side by side), anything else does nothing.
     const onLinkClick = (e: React.MouseEvent<HTMLElement>): void => {
         const link = (e.target as HTMLElement).closest('a')
         if (!link) {
@@ -116,15 +120,28 @@ function ReaderPageView({ windowId }: { windowId: WindowId }): JSX.Element {
             return
         }
         const next = toArticleUrl(target.href)
-        if (next && (middle || e.ctrlKey || e.metaKey)) {
+        if (!next) {
+            return
+        }
+        if (middle) {
+            setLinkMenu({ x: e.clientX, y: e.clientY, url: next })
+        } else if (e.ctrlKey || e.metaKey) {
             openLinkInNewWindow(next)
-        } else if (next) {
+        } else {
             openLink(windowId, next)
         }
     }
 
+    // Pressing the middle button on a link would start the browser's auto-scroll (the round scroll
+    // cursor) before the menu could open.
+    const onMouseDown = (e: React.MouseEvent<HTMLElement>): void => {
+        if (e.button === 1 && (e.target as HTMLElement).closest('a')) {
+            e.preventDefault()
+        }
+    }
+
     return (
-        <article ref={articleRef} className="reader-article" onClick={onLinkClick} onAuxClick={onLinkClick}>
+        <article ref={articleRef} className="reader-article" onClick={onLinkClick} onAuxClick={onLinkClick} onMouseDown={onMouseDown}>
             <header className="reader-article__header">
                 <p className="reader-article__site">{hostOf(article.url)}</p>
                 <h1>{article.title}</h1>
@@ -137,6 +154,15 @@ function ReaderPageView({ windowId }: { windowId: WindowId }): JSX.Element {
                     <summary>Details</summary>
                     <div className="reader-article__body" dangerouslySetInnerHTML={{ __html: article.details }} />
                 </details>
+            )}
+            {linkMenu && (
+                <LinkMenu
+                    x={linkMenu.x}
+                    y={linkMenu.y}
+                    onNewWindow={() => openLinkInNewWindow(linkMenu.url)}
+                    onSideBySide={() => openLinkBeside(windowId, linkMenu.url)}
+                    onClose={closeLinkMenu}
+                />
             )}
         </article>
     )

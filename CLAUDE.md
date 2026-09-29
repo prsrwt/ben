@@ -46,8 +46,11 @@ Build one app at a time, only when the user asks. Everything else stays empty.
   window (state kept, `hidden`), and its desktop icon brings it back. Maximised windows keep an 8px gap.
   Each window has its own id (`reader-2`) and an `appId`. A desktop icon (`openApp`) brings back that app's
   front-most window or opens one; `openWindow` always opens a new one. Only the Reader opens several: Enter
-  in the search bar and Ctrl+click (or middle-click, until its menu exists) open a new Reader window; a plain
-  click on a link stays in the same window, whose history (back/forward) is its own.
+  in the search bar and Ctrl+click open a new Reader window; a plain click on a link stays in the same window,
+  whose history (back/forward) is its own. Middle-click on a link shows a menu (`LinkMenu.tsx`): "Open in new
+  window" or "Open side by side", which snaps this window to the left half and opens the link on the right
+  (`snapped` in `windowsLogic.ts`). Snapped windows are placed, not locked: dragging one away returns it to its
+  own size under the pointer.
 - **Ben View** (`BenView.tsx`, Ctrl+Space): every app with open windows as a matte-glass card over the
   dimmed, blurred desktop; an app with several windows is a stack that fans out when clicked. Picking a card
   brings its window forward; × closes a window; arrows + Enter work; Esc, Ctrl+Space or the background
@@ -89,7 +92,7 @@ Only these came from PostHog, copied so the theme menu looks and behaves exactly
 LemonMenu. Keep them identical unless asked:
 
 - `posthog-menu.css`: the Popover, LemonButton (tertiary, small) and h5 rules, with tokens resolved.
-- `useKeyboardNavigation.ts`: LemonMenu's arrow-key hook, unchanged. (oxlint warns about reading a ref during render in `ThemeMenu.tsx` and `IslandApps.tsx`; that is PostHog's own pattern and safe here. The hook sizes its item list once, so `IslandApps` remounts its menu when the item count changes.)
+- `useKeyboardNavigation.ts`: LemonMenu's arrow-key hook, unchanged. (oxlint warns about reading a ref during render in `ThemeMenu.tsx`, `IslandApps.tsx` and `LinkMenu.tsx`; that is PostHog's own pattern and safe here. The hook sizes its item list once, so `IslandApps` remounts its menu when the item count changes.)
 - `icons.tsx`: four `@posthog/icons` drawings (Search, Brightness, Palette, Laptop). The package itself cost ~260 KB of JS, so it is not installed.
 
 ## Commands
@@ -137,4 +140,4 @@ changes check behaviour in the real app, not only in a browser tab.
 
 - Git repository on `main` since 2026-09-29. Ask before committing.
 - Plain text in the search bar (not a link) does nothing yet.
-- Agreed plan, in order: middle-click menu (new window / side by side); then the Reader's book layout and clickable index.
+- Agreed plan, in order: the Reader's book layout, then its clickable index.

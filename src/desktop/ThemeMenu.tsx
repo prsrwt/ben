@@ -111,12 +111,25 @@ export function ThemeMenu(): JSX.Element {
 }
 
 /** Mirrors PostHog's Popover: mounted first, then marked "enter-active" on the next frame, so the
- *  box tilts and fades in. Mounted fresh on every open, so it always starts from the closed state. */
-export function PopoverFrame({ children }: { children: ReactNode }): JSX.Element {
+ *  box tilts and fades in. Mounted fresh on every open, so it always starts from the closed state.
+ *  Sits under its button unless given another position (such as where a link was clicked). */
+export function PopoverFrame({
+    children,
+    className = 'absolute right-0 top-full',
+    style,
+}: {
+    children: ReactNode
+    className?: string
+    style?: React.CSSProperties
+}): JSX.Element {
     const [entered, setEntered] = useState(false)
     useEffect(() => {
         const frame = requestAnimationFrame(() => setEntered(true))
         return () => cancelAnimationFrame(frame)
     }, [])
-    return <div className={cn('ph-menu Popover absolute right-0 top-full', entered && 'Popover--enter-active')}>{children}</div>
+    return (
+        <div className={cn('ph-menu Popover', className, entered && 'Popover--enter-active')} style={style}>
+            {children}
+        </div>
+    )
 }

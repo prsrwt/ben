@@ -41,6 +41,8 @@ export interface readerLogicValues {
 export interface readerLogicActions {
     /** Opens a link in a new Reader window. */
     openLinkInNewWindow: (url: string) => { windowId: WindowId; page: ReaderPage }
+    /** Opens a link in a new Reader window on the right half of the desktop, with `besideId` on the left. */
+    openLinkBeside: (besideId: WindowId, url: string) => { besideId: WindowId; windowId: WindowId; page: ReaderPage }
     /** Opens a link in an existing Reader window, after its current page. */
     openLink: (windowId: WindowId, url: string) => { windowId: WindowId; page: ReaderPage }
     back: (windowId: WindowId) => { windowId: WindowId }
@@ -51,6 +53,7 @@ export interface readerLogicActions {
     pageFailed: (windowId: WindowId, pageId: number, error: string) => { windowId: WindowId; pageId: number; error: string }
     // Borrowed from windowsLogic (connect below).
     openWindow: windowsLogicActions['openWindow']
+    openBeside: windowsLogicActions['openBeside']
     closeWindow: windowsLogicActions['closeWindow']
 }
 
@@ -86,10 +89,11 @@ const push = ({ pages, index }: ReaderHistory, page: ReaderPage): ReaderHistory 
 
 export const readerLogic = kea<readerLogicType>([
     path(['reader', 'readerLogic']),
-    connect({ actions: [windowsLogic, ['openWindow', 'closeWindow']] }),
+    connect({ actions: [windowsLogic, ['openWindow', 'openBeside', 'closeWindow']] }),
     actions({
         // Ids are made here (not in the reducer) so reducers stay pure.
         openLinkInNewWindow: (url: string) => ({ windowId: newWindowId('reader'), page: newPage(url) }),
+        openLinkBeside: (besideId: WindowId, url: string) => ({ besideId, windowId: newWindowId('reader'), page: newPage(url) }),
         openLink: (windowId: WindowId, url: string) => ({ windowId, page: newPage(url) }),
         back: (windowId: WindowId) => ({ windowId }),
         forward: (windowId: WindowId) => ({ windowId }),
@@ -102,6 +106,7 @@ export const readerLogic = kea<readerLogicType>([
             {} as Record<WindowId, ReaderHistory>,
             {
                 openLinkInNewWindow: (state, { windowId, page }) => withHistory(state, windowId, (h) => push(h, page)),
+                openLinkBeside: (state, { windowId, page }) => withHistory(state, windowId, (h) => push(h, page)),
                 openLink: (state, { windowId, page }) => withHistory(state, windowId, (h) => push(h, page)),
                 back: (state, { windowId }) => withHistory(state, windowId, (h) => ({ ...h, index: Math.max(0, h.index - 1) })),
                 forward: (state, { windowId }) =>
@@ -137,6 +142,10 @@ export const readerLogic = kea<readerLogicType>([
         return {
             openLinkInNewWindow: async ({ windowId, page }) => {
                 actions.openWindow('reader', windowId)
+                await load(windowId, page)
+            },
+            openLinkBeside: async ({ besideId, windowId, page }) => {
+                actions.openBeside('reader', windowId, besideId)
                 await load(windowId, page)
             },
             openLink: async ({ windowId, page }) => {
