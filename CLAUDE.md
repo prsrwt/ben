@@ -39,6 +39,10 @@ Build one app at a time, only when the user asks. Everything else stays empty.
 - **Windows** (`Window.tsx`): all open at one size, `WINDOW_WIDTH` x `WINDOW_HEIGHT` in `windowsLogic.ts`.
   No visible title; the controls float over the content, which scrolls up underneath them. Yellow hides a
   window (state kept, `hidden`), and its desktop icon brings it back. Maximised windows keep an 8px gap.
+  Each window has its own id (`reader-2`) and an `appId`. A desktop icon (`openApp`) brings back that app's
+  front-most window or opens one; `openWindow` always opens a new one. Only the Reader opens several: Enter
+  in the search bar and Ctrl+click (or middle-click, until its menu exists) open a new Reader window; a plain
+  click on a link stays in the same window, whose history (back/forward) is its own.
 - **Scrollbar:** the native one is hidden; `WindowScrollbar.tsx` draws a grey pill clear of the rounded
   corners. (Edge's overlay scrollbars ignore CSS scrollbar styling, which is why it's drawn.)
 - **Desktop icons:** solid matte-glass silhouettes (`GlassIcon.tsx`, a CSS mask over layers) with a
@@ -123,6 +127,6 @@ changes check behaviour in the real app, not only in a browser tab.
 
 - Git repository on `main` since 2026-09-29. Ask before committing.
 - Plain text in the search bar (not a link) does nothing yet.
-- Agreed plan, in order: multiple Reader windows (Enter opens a new one, Ctrl+click too); island recents
+- Agreed plan, in order: island recents
   pill left of the search bar (scroll switches app, click lists its open and recently closed windows);
   middle-click menu (new window / side by side); then the Reader's book layout and clickable index.

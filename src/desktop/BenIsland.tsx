@@ -20,7 +20,7 @@ import { MENU_BAR_HEIGHT, windowsLogic } from './windowsLogic'
 
 function SearchBar(): JSX.Element {
     const inputRef = useRef<HTMLInputElement>(null)
-    const { openLink } = useActions(readerLogic)
+    const { openLinkInNewWindow } = useActions(readerLogic)
 
     // Ctrl+K (⌘K on a Mac) jumps to the search bar from anywhere.
     useEffect(() => {
@@ -36,7 +36,7 @@ function SearchBar(): JSX.Element {
     }, [])
 
     return (
-        // Submitting a link opens it in the Reader. Anything else does nothing yet (search comes later).
+        // Submitting a link opens it in a new Reader window. Anything else does nothing yet (search comes later).
         <form
             role="search"
             className="w-full"
@@ -44,7 +44,7 @@ function SearchBar(): JSX.Element {
                 e.preventDefault()
                 const url = toArticleUrl(inputRef.current?.value ?? '')
                 if (url && inputRef.current) {
-                    openLink(url)
+                    openLinkInNewWindow(url)
                     // The link now lives in its window; a leftover address wouldn't say which one.
                     inputRef.current.value = ''
                     inputRef.current.blur()
@@ -68,7 +68,7 @@ function SearchBar(): JSX.Element {
 }
 
 export function BenIsland(): JSX.Element {
-    const { focusedId } = useValues(windowsLogic)
+    const { focusedWindow } = useValues(windowsLogic)
 
     return (
         <header
@@ -91,7 +91,7 @@ export function BenIsland(): JSX.Element {
 
             {/* Options for the app in front, just right of the search bar (whose half-width is min(170px, 15%)). */}
             <div className="absolute left-[calc(50%+min(170px,15%)+8px)]">
-                {focusedId === 'reader' && <ReaderIslandOptions />}
+                {focusedWindow?.appId === 'reader' && <ReaderIslandOptions windowId={focusedWindow.id} />}
             </div>
 
             <div className="ml-auto flex items-center gap-3">

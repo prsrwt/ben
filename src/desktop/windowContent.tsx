@@ -4,6 +4,7 @@
 import { ReaderView } from '~/reader/ReaderView'
 
 import { APPS, AppId } from './apps'
+import { WindowState } from './windowsLogic'
 
 function EmptyWindow({ id }: { id: AppId }): JSX.Element {
     return (
@@ -14,6 +15,6 @@ function EmptyWindow({ id }: { id: AppId }): JSX.Element {
     )
 }
 
-export function WindowContent({ id }: { id: AppId }): JSX.Element {
-    return id === 'reader' ? <ReaderView /> : <EmptyWindow id={id} />
+export function WindowContent({ window }: { window: WindowState }): JSX.Element {
+    return window.appId === 'reader' ? <ReaderView windowId={window.id} /> : <EmptyWindow id={window.appId} />
 }

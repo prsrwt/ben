@@ -24,7 +24,7 @@ interface WindowProps {
 
 export function Window({ state, zIndex, isFocused, isMobile, children }: WindowProps): JSX.Element {
     const { focusWindow, closeWindow, moveWindow, toggleMaximize, minimizeWindow } = useActions(windowsLogic)
-    const app = APPS[state.id]
+    const app = APPS[state.appId]
     const fullScreen = state.maximized || isMobile
     // Pointer position relative to the window's top-left corner while dragging.
     const dragOffset = useRef<{ x: number; y: number } | null>(null)
@@ -59,7 +59,7 @@ export function Window({ state, zIndex, isFocused, isMobile, children }: WindowP
         <section
             role="region"
             aria-label={app.title}
-            data-attr={`window-${state.id}`}
+            data-attr={`window-${state.appId}`}
             // Minimised: hidden rather than removed, so whatever is inside keeps its state.
             hidden={state.minimized}
             // Clicking anywhere in a window brings it to the front.

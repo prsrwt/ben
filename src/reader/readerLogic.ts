@@ -1,10 +1,10 @@
-// The Reader's state: the pages visited in its window (its history) and which one is showing. Back and
-// forward move through pages already loaded, so they show instantly. Mounted for the whole session,
-// because links arrive from the island's search bar before the Reader window exists.
+// The Reader's state: for each Reader window, the pages visited in it (its history) and which one is
+// showing. Back and forward move through pages already loaded, so they show instantly. Mounted for the
+// whole session, because links arrive from the island's search bar before their window exists.
 
-import { MakeLogicType, actions, connect, kea, listeners, path, reducers, selectors } from 'kea'
+import { MakeLogicType, actions, connect, kea, listeners, path, reducers } from 'kea'
 
-import { windowsLogic, windowsLogicActions } from '~/desktop/windowsLogic'
+import { WindowId, newWindowId, windowsLogic, windowsLogicActions } from '~/desktop/windowsLogic'
 
 import { Article, fetchArticle } from './fetchArticle'
 
@@ -18,118 +18,134 @@ export interface ReaderPage {
     error: string | null
 }
 
-/** Oldest pages are forgotten beyond this, so a long session doesn't hold every article in memory. */
-const MAX_HISTORY = 30
-
-let nextPageId = 1
-
 export interface ReaderHistory {
-    pages: ReaderPage[]
-    index: number
-}
-
-export interface readerLogicValues {
-    history: ReaderHistory
     pages: ReaderPage[]
     /** Which page is showing; -1 when there are none. */
     index: number
-    current: ReaderPage | null
-    canGoBack: boolean
-    canGoForward: boolean
+}
+
+/** Oldest pages are forgotten beyond this, so a long session doesn't hold every article in memory. */
+const MAX_HISTORY = 30
+
+const EMPTY_HISTORY: ReaderHistory = { pages: [], index: -1 }
+
+let nextPageId = 1
+
+const newPage = (url: string): ReaderPage => ({ id: nextPageId++, url, status: 'loading', article: null, error: null })
+
+export interface readerLogicValues {
+    /** Each Reader window's history, by window id. A window missing here is empty. */
+    histories: Record<WindowId, ReaderHistory>
 }
 
 export interface readerLogicActions {
-    openLink: (url: string) => { page: ReaderPage }
-    back: () => { value: true }
-    forward: () => { value: true }
-    /** Downloads the showing page again (after an error). */
-    reload: () => { value: true }
-    pageLoaded: (id: number, article: Article) => { id: number; article: Article }
-    pageFailed: (id: number, error: string) => { id: number; error: string }
-    clear: () => { value: true }
+    /** Opens a link in a new Reader window. */
+    openLinkInNewWindow: (url: string) => { windowId: WindowId; page: ReaderPage }
+    /** Opens a link in an existing Reader window, after its current page. */
+    openLink: (windowId: WindowId, url: string) => { windowId: WindowId; page: ReaderPage }
+    back: (windowId: WindowId) => { windowId: WindowId }
+    forward: (windowId: WindowId) => { windowId: WindowId }
+    /** Downloads the window's showing page again (after an error). */
+    reload: (windowId: WindowId) => { windowId: WindowId }
+    pageLoaded: (windowId: WindowId, pageId: number, article: Article) => { windowId: WindowId; pageId: number; article: Article }
+    pageFailed: (windowId: WindowId, pageId: number, error: string) => { windowId: WindowId; pageId: number; error: string }
     // Borrowed from windowsLogic (connect below).
-    openApp: windowsLogicActions['openApp']
+    openWindow: windowsLogicActions['openWindow']
     closeWindow: windowsLogicActions['closeWindow']
 }
 
 export type readerLogicType = MakeLogicType<readerLogicValues, readerLogicActions>
 
-const updatePage = (pages: ReaderPage[], id: number, change: Partial<ReaderPage>): ReaderPage[] =>
-    pages.map((page) => (page.id === id ? { ...page, ...change } : page))
+/** The history shown in a window, and what its island buttons can do. */
+export function readerWindowState(histories: Record<WindowId, ReaderHistory>, windowId: WindowId): {
+    current: ReaderPage | null
+    canGoBack: boolean
+    canGoForward: boolean
+} {
+    const { pages, index } = histories[windowId] ?? EMPTY_HISTORY
+    return { current: pages[index] ?? null, canGoBack: index > 0, canGoForward: index < pages.length - 1 }
+}
+
+/** Replaces one window's history, leaving the others as they are. */
+const withHistory = (
+    histories: Record<WindowId, ReaderHistory>,
+    windowId: WindowId,
+    change: (history: ReaderHistory) => ReaderHistory
+): Record<WindowId, ReaderHistory> => ({ ...histories, [windowId]: change(histories[windowId] ?? EMPTY_HISTORY) })
+
+const updatePage = (history: ReaderHistory, pageId: number, change: Partial<ReaderPage>): ReaderHistory => ({
+    ...history,
+    pages: history.pages.map((page) => (page.id === pageId ? { ...page, ...change } : page)),
+})
+
+/** A new page replaces any pages ahead of the current one, as in a browser. */
+const push = ({ pages, index }: ReaderHistory, page: ReaderPage): ReaderHistory => {
+    const kept = [...pages.slice(0, index + 1), page].slice(-MAX_HISTORY)
+    return { pages: kept, index: kept.length - 1 }
+}
 
 export const readerLogic = kea<readerLogicType>([
     path(['reader', 'readerLogic']),
-    connect({ actions: [windowsLogic, ['openApp', 'closeWindow']] }),
+    connect({ actions: [windowsLogic, ['openWindow', 'closeWindow']] }),
     actions({
-        openLink: (url: string) => ({
-            // Created here (not in the reducer) so reducers stay pure.
-            page: { id: nextPageId++, url, status: 'loading', article: null, error: null } as ReaderPage,
-        }),
-        back: true,
-        forward: true,
-        reload: true,
-        pageLoaded: (id: number, article: Article) => ({ id, article }),
-        pageFailed: (id: number, error: string) => ({ id, error }),
-        clear: true,
+        // Ids are made here (not in the reducer) so reducers stay pure.
+        openLinkInNewWindow: (url: string) => ({ windowId: newWindowId('reader'), page: newPage(url) }),
+        openLink: (windowId: WindowId, url: string) => ({ windowId, page: newPage(url) }),
+        back: (windowId: WindowId) => ({ windowId }),
+        forward: (windowId: WindowId) => ({ windowId }),
+        reload: (windowId: WindowId) => ({ windowId }),
+        pageLoaded: (windowId: WindowId, pageId: number, article: Article) => ({ windowId, pageId, article }),
+        pageFailed: (windowId: WindowId, pageId: number, error: string) => ({ windowId, pageId, error }),
     }),
     reducers({
-        // Pages and index change together, so they share one reducer and are split by selectors.
-        history: [
-            { pages: [], index: -1 } as ReaderHistory,
+        histories: [
+            {} as Record<WindowId, ReaderHistory>,
             {
-                // A new page replaces any pages ahead of the current one, as in a browser.
-                openLink: ({ pages, index }, { page }) => {
-                    const kept = [...pages.slice(0, index + 1), page].slice(-MAX_HISTORY)
-                    return { pages: kept, index: kept.length - 1 }
+                openLinkInNewWindow: (state, { windowId, page }) => withHistory(state, windowId, (h) => push(h, page)),
+                openLink: (state, { windowId, page }) => withHistory(state, windowId, (h) => push(h, page)),
+                back: (state, { windowId }) => withHistory(state, windowId, (h) => ({ ...h, index: Math.max(0, h.index - 1) })),
+                forward: (state, { windowId }) =>
+                    withHistory(state, windowId, (h) => ({ ...h, index: Math.min(h.pages.length - 1, h.index + 1) })),
+                reload: (state, { windowId }) =>
+                    withHistory(state, windowId, (h) =>
+                        h.pages[h.index] ? updatePage(h, h.pages[h.index].id, { status: 'loading', error: null }) : h
+                    ),
+                // A download that finishes after its page or window is gone finds no match and changes nothing.
+                pageLoaded: (state, { windowId, pageId, article }) =>
+                    state[windowId] ? withHistory(state, windowId, (h) => updatePage(h, pageId, { status: 'ready', article })) : state,
+                pageFailed: (state, { windowId, pageId, error }) =>
+                    state[windowId] ? withHistory(state, windowId, (h) => updatePage(h, pageId, { status: 'failed', error })) : state,
+                // Closing a window discards its pages (minimising keeps them, as for every window).
+                closeWindow: (state, { id }) => {
+                    if (!(id in state)) {
+                        return state
+                    }
+                    const { [id]: _closed, ...rest } = state
+                    return rest
                 },
-                back: (state) => ({ ...state, index: Math.max(0, state.index - 1) }),
-                forward: (state) => ({ ...state, index: Math.min(state.pages.length - 1, state.index + 1) }),
-                reload: ({ pages, index }) => ({
-                    pages: pages[index] ? updatePage(pages, pages[index].id, { status: 'loading', error: null }) : pages,
-                    index,
-                }),
-                // A download that finishes after its page was dropped finds no match and changes nothing.
-                pageLoaded: (state, { id, article }) => ({
-                    ...state,
-                    pages: updatePage(state.pages, id, { status: 'ready', article }),
-                }),
-                pageFailed: (state, { id, error }) => ({
-                    ...state,
-                    pages: updatePage(state.pages, id, { status: 'failed', error }),
-                }),
-                clear: () => ({ pages: [], index: -1 }),
             },
         ],
     }),
-    selectors({
-        pages: [(s) => [s.history], (history: ReaderHistory): ReaderPage[] => history.pages],
-        index: [(s) => [s.history], (history: ReaderHistory): number => history.index],
-        current: [(s) => [s.pages, s.index], (pages: ReaderPage[], index: number): ReaderPage | null => pages[index] ?? null],
-        canGoBack: [(s) => [s.index], (index: number): boolean => index > 0],
-        canGoForward: [(s) => [s.pages, s.index], (pages: ReaderPage[], index: number): boolean => index < pages.length - 1],
-    }),
     listeners(({ actions, values }) => {
-        const load = async (page: ReaderPage): Promise<void> => {
+        const load = async (windowId: WindowId, page: ReaderPage): Promise<void> => {
             try {
-                actions.pageLoaded(page.id, await fetchArticle(page.url))
+                actions.pageLoaded(windowId, page.id, await fetchArticle(page.url))
             } catch (e) {
-                actions.pageFailed(page.id, e instanceof Error ? e.message : String(e))
+                actions.pageFailed(windowId, page.id, e instanceof Error ? e.message : String(e))
             }
         }
         return {
-            openLink: async ({ page }) => {
-                actions.openApp('reader')
-                await load(page)
+            openLinkInNewWindow: async ({ windowId, page }) => {
+                actions.openWindow('reader', windowId)
+                await load(windowId, page)
             },
-            reload: async () => {
-                if (values.current) {
-                    await load(values.current)
-                }
+            openLink: async ({ windowId, page }) => {
+                await load(windowId, page)
             },
-            // Closing the window discards its pages (minimising keeps them, as for every window).
-            closeWindow: ({ id }) => {
-                if (id === 'reader') {
-                    actions.clear()
+            reload: async ({ windowId }) => {
+                const { current } = readerWindowState(values.histories, windowId)
+                if (current) {
+                    await load(windowId, current)
                 }
             },
         }

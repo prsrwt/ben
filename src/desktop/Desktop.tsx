@@ -100,7 +100,7 @@ export function Desktop(): JSX.Element {
                     isFocused={state.id === focusedId}
                     isMobile={isMobile}
                 >
-                    <WindowContent id={state.id} />
+                    <WindowContent window={state} />
                 </Window>
             ))}
         </div>

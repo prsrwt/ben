@@ -1,4 +1,4 @@
-// The Reader window: a clean article, or what to do when there isn't one. Article styles: reader.css.
+// A Reader window: a clean article, or what to do when there isn't one. Article styles: reader.css.
 
 import './reader.css'
 
@@ -6,7 +6,9 @@ import { useActions, useValues } from 'kea'
 import { ReactNode, useLayoutEffect, useRef } from 'react'
 
 import { toArticleUrl } from './fetchArticle'
-import { readerLogic } from './readerLogic'
+import { WindowId } from '~/desktop/windowsLogic'
+
+import { readerLogic, readerWindowState } from './readerLogic'
 
 const hostOf = (url: string): string => new URL(url).hostname.replace(/^www\./, '')
 
@@ -23,8 +25,8 @@ function Notice({ title, children }: { title: string; children?: ReactNode }): J
     )
 }
 
-export function ReaderView(): JSX.Element {
-    const { current } = useValues(readerLogic)
+export function ReaderView({ windowId }: { windowId: WindowId }): JSX.Element {
+    const { current } = readerWindowState(useValues(readerLogic).histories, windowId)
     const rootRef = useRef<HTMLDivElement>(null)
     const pageId = current?.status === 'ready' ? current.id : null
 
@@ -46,14 +48,14 @@ export function ReaderView(): JSX.Element {
 
     return (
         <div ref={rootRef} className="h-full">
-            <ReaderPageView />
+            <ReaderPageView windowId={windowId} />
         </div>
     )
 }
 
-function ReaderPageView(): JSX.Element {
-    const { current } = useValues(readerLogic)
-    const { openLink, reload } = useActions(readerLogic)
+function ReaderPageView({ windowId }: { windowId: WindowId }): JSX.Element {
+    const { current } = readerWindowState(useValues(readerLogic).histories, windowId)
+    const { openLink, openLinkInNewWindow, reload } = useActions(readerLogic)
     const articleRef = useRef<HTMLElement>(null)
 
     if (current?.status === 'loading') {
@@ -70,7 +72,7 @@ function ReaderPageView(): JSX.Element {
                 <p className="text-tertiary text-xs m-0 max-w-sm break-all">{current.url}</p>
                 <button
                     type="button"
-                    onClick={reload}
+                    onClick={() => reload(windowId)}
                     className="mt-3 px-3 py-1 rounded-md text-sm font-semibold text-primary bg-hover hover:bg-[color-mix(in_oklab,currentColor_12%,transparent)]"
                 >
                     Try again
@@ -88,14 +90,16 @@ function ReaderPageView(): JSX.Element {
     }
 
     // Links inside the article never navigate Ben itself: links to a part of this page scroll there,
-    // other web links open in the Reader, anything else does nothing.
+    // other web links open in the Reader (this window; a new one with Ctrl+click or the middle button),
+    // anything else does nothing.
     const onLinkClick = (e: React.MouseEvent<HTMLElement>): void => {
         const link = (e.target as HTMLElement).closest('a')
         if (!link) {
             return
         }
         e.preventDefault()
-        if (e.type !== 'click') {
+        const middle = e.type === 'auxclick' && e.button === 1
+        if (e.type !== 'click' && !middle) {
             return
         }
         const href = link.getAttribute('href')
@@ -112,8 +116,10 @@ function ReaderPageView(): JSX.Element {
             return
         }
         const next = toArticleUrl(target.href)
-        if (next) {
-            openLink(next)
+        if (next && (middle || e.ctrlKey || e.metaKey)) {
+            openLinkInNewWindow(next)
+        } else if (next) {
+            openLink(windowId, next)
         }
     }
 

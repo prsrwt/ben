@@ -1,10 +1,12 @@
-// The Reader's options on Ben Island (right of the search bar), shown while a Reader window is in front:
+// The Reader's options on Ben Island (right of the search bar), for the Reader window in front:
 // back and forward. Alt+← / Alt+→ (either Alt key) and the mouse's side buttons do the same while it's shown.
 
 import { useActions, useValues } from 'kea'
 import { useEffect } from 'react'
 
-import { readerLogic } from './readerLogic'
+import { WindowId } from '~/desktop/windowsLogic'
+
+import { readerLogic, readerWindowState } from './readerLogic'
 
 /** A small chevron, drawn inline; points left for back, right for forward. */
 function Chevron({ direction }: { direction: 'left' | 'right' }): JSX.Element {
@@ -18,8 +20,8 @@ function Chevron({ direction }: { direction: 'left' | 'right' }): JSX.Element {
 const BUTTON =
     'size-7 flex items-center justify-center rounded text-secondary enabled:hover:text-primary enabled:hover:bg-hover disabled:opacity-35 focus-visible:outline-2 focus-visible:outline-current'
 
-export function ReaderIslandOptions(): JSX.Element {
-    const { canGoBack, canGoForward } = useValues(readerLogic)
+export function ReaderIslandOptions({ windowId }: { windowId: WindowId }): JSX.Element {
+    const { canGoBack, canGoForward } = readerWindowState(useValues(readerLogic).histories, windowId)
     const { back, forward } = useActions(readerLogic)
 
     useEffect(() => {
@@ -30,9 +32,9 @@ export function ReaderIslandOptions(): JSX.Element {
             if (alt && (event.key === 'ArrowLeft' || event.key === 'ArrowRight')) {
                 event.preventDefault()
                 if (event.key === 'ArrowLeft') {
-                    back()
+                    back(windowId)
                 } else {
-                    forward()
+                    forward(windowId)
                 }
             }
         }
@@ -41,9 +43,9 @@ export function ReaderIslandOptions(): JSX.Element {
             if (event.button === 3 || event.button === 4) {
                 event.preventDefault()
                 if (event.button === 3) {
-                    back()
+                    back(windowId)
                 } else {
-                    forward()
+                    forward(windowId)
                 }
             }
         }
@@ -53,14 +55,14 @@ export function ReaderIslandOptions(): JSX.Element {
             window.removeEventListener('keydown', onKeyDown)
             window.removeEventListener('mouseup', onMouseUp)
         }
-    }, [back, forward])
+    }, [back, forward, windowId])
 
     return (
         <div className="flex items-center gap-0.5" role="group" aria-label="Reader">
-            <button type="button" className={BUTTON} onClick={back} disabled={!canGoBack} title="Back (Alt+←)" aria-label="Back" data-attr="reader-back">
+            <button type="button" className={BUTTON} onClick={() => back(windowId)} disabled={!canGoBack} title="Back (Alt+←)" aria-label="Back" data-attr="reader-back">
                 <Chevron direction="left" />
             </button>
-            <button type="button" className={BUTTON} onClick={forward} disabled={!canGoForward} title="Forward (Alt+→)" aria-label="Forward" data-attr="reader-forward">
+            <button type="button" className={BUTTON} onClick={() => forward(windowId)} disabled={!canGoForward} title="Forward (Alt+→)" aria-label="Forward" data-attr="reader-forward">
                 <Chevron direction="right" />
             </button>
         </div>
