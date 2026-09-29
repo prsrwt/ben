@@ -5,7 +5,7 @@ styled as a small desktop with matte-glass windows. It is not a general web brow
 remove clutter and distraction from studying online. Planned apps, each still an empty window:
 
 - **Reader:** paste a link, get a clean article rendered as a book (pagination, clickable index). Being built:
-  clean article, clean-up and back/forward are done; book layout and index are still to come.
+  clean article, clean-up, back/forward and pages are done; keeping your place (6b) and the index are next.
 - **History:** every page read in the Reader (link, title, time; not the article), grouped by day, kept
   across restarts in localStorage `ben.history` (last 1,000). Built.
 - **Library:** saved articles and notes in folders, stored as plain files the user owns.
@@ -24,7 +24,8 @@ Build one app at a time, only when the user asks. Everything else stays empty.
 2. **Keep it thin.** Ben was stripped from a 34,000-line PostHog copy down to about 1,300 lines of its own.
    Add a dependency only when it earns its place, and check its bundle cost (see "Measuring"). Draw small
    UI pieces inline rather than pulling in a library.
-3. **The look is decided.** Matte glass (island, windows, icons), Figtree font, PostHog-style theme menu.
+3. **The look is decided.** Matte glass (island, windows, icons), Figtree font (Literata for article text),
+   PostHog-style theme menu.
    Don't restyle without being asked.
 4. The user's global instructions apply: explain plainly, propose work as phases, and wait for approval
    before writing code.
@@ -55,6 +56,12 @@ Build one app at a time, only when the user asks. Everything else stays empty.
   dimmed, blurred desktop; an app with several windows is a stack that fans out when clicked. Picking a card
   brings its window forward; × closes a window; arrows + Enter work; Esc, Ctrl+Space or the background
   close it. The blurred backdrop is a sibling of the cards, not their parent, so the cards' glass still works.
+- **Reader pages** (`useBook.ts`): the article flows into page-sized CSS columns inside a frame one spread
+  wide, and turning slides the row of columns. Two facing pages when there's at least 900px of room (after
+  56px margins), otherwise one page (at most 680px wide). → / Space / PageDown forward, ← / Shift+Space /
+  PageUp back (front Reader window only; not while focus is in a field, button or menu), and clicking the side
+  margins. Page numbers under each page. Headings carry an invisible 4em tail so they never end a page.
+  Article text is Literata (`@fontsource-variable/literata`, ~52 KB upright + ~54 KB italic for Latin).
 - **Scrollbar:** the native one is hidden; `WindowScrollbar.tsx` draws a grey pill clear of the rounded
   corners. (Edge's overlay scrollbars ignore CSS scrollbar styling, which is why it's drawn.)
 - **Desktop icons:** solid matte-glass silhouettes (`GlassIcon.tsx`, a CSS mask over layers) with a
@@ -78,7 +85,7 @@ Build one app at a time, only when the user asks. Everything else stays empty.
 | `src/desktop/apps.tsx` | The app registry (id, title, column). Add an app here |
 | `src/desktop/windowContent.tsx` | What each window shows. The Reader has its view; the rest are `EmptyWindow` |
 | `src/history/` | History: `historyLogic.ts` (records Reader page loads, persists), `HistoryView.tsx` |
-| `src/reader/` | The Reader: `fetchArticle.ts` (download via Tauri's HTTP plugin), `extractArticle.ts` (Readability + DOMPurify + clean-up, no app dependencies), `readerLogic.ts` (history: pages + index), `ReaderView.tsx`, `ReaderIslandOptions.tsx` (back/forward on the island), `reader.css` |
+| `src/reader/` | The Reader: `fetchArticle.ts` (download via Tauri's HTTP plugin), `extractArticle.ts` (Readability + DOMPurify + clean-up, no app dependencies), `readerLogic.ts` (history: pages + index), `ReaderView.tsx`, `ReaderIslandOptions.tsx` (back/forward on the island), `useBook.ts` (page layout and turning), `reader.css` |
 | `src/desktop/windowsLogic.ts` | Kea logic: open windows, order, position, maximise, minimise |
 | `src/desktop/themeLogic.ts` | Kea logic: theme mode, persistence, live system theme |
 | `src/desktop/nativeWindow.ts` | Tauri window access; `IS_DESKTOP_APP` is false in a plain browser tab |

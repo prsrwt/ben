@@ -1,15 +1,96 @@
-/* The Reader's article: one comfortable reading column. Tailwind's reset strips headings, lists and
-   margins, so the article's own elements are styled here. Colours are Ben's tokens (src/styles.css),
-   so it follows light and dark. */
+/* The Reader's article, set in Literata (a serif made for long reading on screens) and laid out as a book
+   (useBook.ts). Tailwind's reset strips headings, lists and margins, so the article's own elements are
+   styled here. Colours are Ben's tokens (src/styles.css), so it follows light and dark. */
 
 .reader-article {
-    max-width: 68ch;
-    margin: 0 auto;
-    padding: 8px 40px 72px;
+    font-family: 'Literata Variable', Georgia, serif;
     font-size: 17px;
-    line-height: 1.7;
+    line-height: 1.65;
     color: var(--ben-text);
     overflow-wrap: break-word;
+}
+
+/* The book: the article flows into page-sized columns (count, size and height set by useBook), and the
+   whole row of pages slides sideways to turn. */
+.reader-article--paged {
+    position: absolute;
+    column-fill: auto;
+    will-change: transform;
+
+    /* Headings stay with the text that follows them; pictures, code and table rows aren't split across pages.
+       Chrome ignores break-after inside columns, so each heading also carries an invisible, unbreakable tail
+       about four lines tall (taking no space): a heading too near the foot of a page moves to the next one. */
+    & :is(h1, h2, h3, h4, h5, h6) {
+        break-after: avoid;
+        break-inside: avoid;
+
+        &::after {
+            content: '';
+            display: block;
+            height: 4em;
+            margin-bottom: -4em;
+        }
+    }
+
+    & :is(figure, img, pre, tr) {
+        break-inside: avoid;
+    }
+
+    /* A picture is never taller than a page. */
+    & :is(img, video) {
+        max-height: calc(var(--page-height) - 3em);
+        width: auto;
+        object-fit: contain;
+    }
+}
+
+.reader-article--turning {
+    transition: transform 220ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .reader-article--turning {
+        transition: none;
+    }
+}
+
+/* The margins either side of the pages: click to turn. A faint chevron shows on hover. */
+.reader-book__edge {
+    cursor: default;
+    background: none;
+    border: 0;
+
+    &::after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        width: 10px;
+        height: 10px;
+        border: solid var(--ben-text-3);
+        border-width: 0 0 2px 2px;
+        opacity: 0;
+        transition: opacity 150ms;
+    }
+
+    &:hover:not(:disabled)::after {
+        opacity: 0.8;
+    }
+}
+
+.reader-book__edge--back::after {
+    right: 22px;
+    transform: rotate(45deg);
+}
+
+.reader-book__edge--next::after {
+    left: 22px;
+    transform: rotate(-135deg);
+}
+
+/* Page numbers, centred under each page. */
+.reader-book__folio {
+    text-align: center;
+    pointer-events: none;
 }
 
 .reader-article__header {
@@ -26,9 +107,11 @@
     }
 }
 
+/* Site and byline are labels rather than reading text: Ben's own font. */
 .reader-article__site,
 .reader-article__byline {
     margin: 0;
+    font-family: var(--font-sans);
     font-size: 0.8em;
     color: var(--ben-text-3);
 }
