@@ -200,6 +200,61 @@
     }
 }
 
+/* Ben View (BenView.tsx): the desktop dimmed and blurred behind the cards. It fades in on its own; the
+   cards only move (never fade), since fading glass would cut it off from what's behind. */
+.ben-view__backdrop {
+    background: rgb(20 22 28 / 0.32);
+    backdrop-filter: blur(14px) saturate(1.1);
+    animation: ben-view-fade 140ms ease-out;
+}
+
+.ben-view__card-wrap {
+    animation: ben-view-rise 160ms ease-out;
+}
+
+.ben-view__card {
+    cursor: default;
+    transition: transform 120ms ease-out;
+
+    &:hover,
+    &:focus-visible {
+        transform: translateY(-3px);
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--ben-accent);
+        outline-offset: 3px;
+    }
+}
+
+/* The sheets behind a stack's top card, like a small pile of paper. */
+.ben-view__sheet--1 {
+    transform: translate(7px, 7px) rotate(1.5deg);
+}
+
+.ben-view__sheet--2 {
+    transform: translate(14px, 14px) rotate(3deg);
+}
+
+@keyframes ben-view-fade {
+    from {
+        opacity: 0;
+    }
+}
+
+@keyframes ben-view-rise {
+    from {
+        transform: translateY(10px) scale(0.97);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ben-view__backdrop,
+    .ben-view__card-wrap {
+        animation: none;
+    }
+}
+
 /* Windows fade and scale in when they open. */
 .desktop-window {
     animation: desktop-window-open 140ms ease-out;

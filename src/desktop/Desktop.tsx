@@ -10,6 +10,7 @@ import { DESKTOP_ASSETS, useImageAvailable } from './assets'
 import { cn } from './cn'
 import { DesktopIcon } from './DesktopIcon'
 import { BenIsland } from './BenIsland'
+import { BenView } from './BenView'
 import { Window } from './Window'
 import { WindowContent } from './windowContent'
 import { DESKTOP_TOP, windowsLogic } from './windowsLogic'
@@ -103,6 +104,9 @@ export function Desktop(): JSX.Element {
                     <WindowContent window={state} />
                 </Window>
             ))}
+
+            {/* Ctrl+Space: every open window as cards, over everything else. */}
+            <BenView />
         </div>
     )
 }

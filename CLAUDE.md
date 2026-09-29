@@ -48,6 +48,10 @@ Build one app at a time, only when the user asks. Everything else stays empty.
   front-most window or opens one; `openWindow` always opens a new one. Only the Reader opens several: Enter
   in the search bar and Ctrl+click (or middle-click, until its menu exists) open a new Reader window; a plain
   click on a link stays in the same window, whose history (back/forward) is its own.
+- **Ben View** (`BenView.tsx`, Ctrl+Space): every app with open windows as a matte-glass card over the
+  dimmed, blurred desktop; an app with several windows is a stack that fans out when clicked. Picking a card
+  brings its window forward; × closes a window; arrows + Enter work; Esc, Ctrl+Space or the background
+  close it. The blurred backdrop is a sibling of the cards, not their parent, so the cards' glass still works.
 - **Scrollbar:** the native one is hidden; `WindowScrollbar.tsx` draws a grey pill clear of the rounded
   corners. (Edge's overlay scrollbars ignore CSS scrollbar styling, which is why it's drawn.)
 - **Desktop icons:** solid matte-glass silhouettes (`GlassIcon.tsx`, a CSS mask over layers) with a
