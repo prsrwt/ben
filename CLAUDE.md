@@ -6,6 +6,8 @@ remove clutter and distraction from studying online. Planned apps, each still an
 
 - **Reader:** paste a link, get a clean article rendered as a book (pagination, clickable index). Being built:
   clean article, clean-up and back/forward are done; book layout and index are still to come.
+- **History:** every page read in the Reader (link, title, time; not the article), grouped by day, kept
+  across restarts in localStorage `ben.history` (last 1,000). Built.
 - **Library:** saved articles and notes in folders, stored as plain files the user owns.
 - **Newspaper:** RSS sources laid out as an old-times broadsheet.
 - **Videos:** YouTube captions turned into readable, chaptered transcripts.
@@ -65,6 +67,7 @@ Build one app at a time, only when the user asks. Everything else stays empty.
 | `src/desktop/desktop.css` | Wallpaper, glass, traffic lights, scrollbar, search bar, icon layers (plain CSS, native nesting) |
 | `src/desktop/apps.tsx` | The app registry (id, title, column). Add an app here |
 | `src/desktop/windowContent.tsx` | What each window shows. The Reader has its view; the rest are `EmptyWindow` |
+| `src/history/` | History: `historyLogic.ts` (records Reader page loads, persists), `HistoryView.tsx` |
 | `src/reader/` | The Reader: `fetchArticle.ts` (download via Tauri's HTTP plugin), `extractArticle.ts` (Readability + DOMPurify + clean-up, no app dependencies), `readerLogic.ts` (history: pages + index), `ReaderView.tsx`, `ReaderIslandOptions.tsx` (back/forward on the island), `reader.css` |
 | `src/desktop/windowsLogic.ts` | Kea logic: open windows, order, position, maximise, minimise |
 | `src/desktop/themeLogic.ts` | Kea logic: theme mode, persistence, live system theme |
@@ -128,5 +131,6 @@ changes check behaviour in the real app, not only in a browser tab.
 - Git repository on `main` since 2026-09-29. Ask before committing.
 - Plain text in the search bar (not a link) does nothing yet.
 - Agreed plan, in order: island recents
-  pill left of the search bar (scroll switches app, click lists its open and recently closed windows);
+  pill left of the search bar (scroll switches app, click lists its open windows, the last 5 closed from
+  History, and "Show all history");
   middle-click menu (new window / side by side); then the Reader's book layout and clickable index.

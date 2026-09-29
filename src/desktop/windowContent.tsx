@@ -1,6 +1,7 @@
-// What each window shows. The Reader is built; the rest are empty placeholders for now. To build one
+// What each window shows. The Reader and History are built; the rest are empty placeholders for now. To build one
 // out, give it its own component and map its id to it here.
 
+import { HistoryView } from '~/history/HistoryView'
 import { ReaderView } from '~/reader/ReaderView'
 
 import { APPS, AppId } from './apps'
@@ -16,5 +17,12 @@ function EmptyWindow({ id }: { id: AppId }): JSX.Element {
 }
 
 export function WindowContent({ window }: { window: WindowState }): JSX.Element {
-    return window.appId === 'reader' ? <ReaderView windowId={window.id} /> : <EmptyWindow id={window.appId} />
+    switch (window.appId) {
+        case 'reader':
+            return <ReaderView windowId={window.id} />
+        case 'history':
+            return <HistoryView />
+        default:
+            return <EmptyWindow id={window.appId} />
+    }
 }
