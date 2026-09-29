@@ -404,8 +404,15 @@
         gap: 12px;
         font-size: 16px;
 
+        justify-content: center;
+
+        /* The input is only as wide as its text (or the placeholder while empty), and that is centred: the
+           cursor then starts at the beginning of the placeholder instead of in the middle of it. */
         & input {
-            text-align: center;
+            flex: 0 1 auto;
+            field-sizing: content;
+            min-width: 2ch;
+            max-width: 100%;
             caret-color: var(--ben-accent);
         }
     }
