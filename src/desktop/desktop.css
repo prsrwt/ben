@@ -281,7 +281,9 @@
    glass (the drop and its two curved shoulders), made exactly like the island's (same tint, blur and grain), so
    it reads as the bar continuing rather than a panel on top of it. A slight overshoot makes it feel liquid. */
 .island-search {
-    --island-glass: rgb(238 239 233 / 0.7);
+    /* See-through glass takes the colour of what's behind it, so over a window the notch and the bar (over the
+       wallpaper) would differ. While open, both turn to the same nearly solid glass and read as one surface. */
+    --island-glass: rgb(238 239 233 / 0.95);
     /* Closing settles smoothly back into the bar; opening (below) overshoots a little, like liquid. */
     --island-search-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
 
@@ -435,8 +437,18 @@
 
 /* While the notch is open the bar's hairline goes, so bar and notch are one surface, and the icons either
    side move aside to make room, with the same liquid ease. */
+.ben-island {
+    transition: background-color 240ms ease-out;
+}
+
 body:has(.island-search--open) .ben-island {
     border-bottom-color: transparent;
+    background-color: rgb(238 239 233 / 0.95);
+}
+
+[theme='dark'] body:has(.island-search--open) .ben-island,
+body[theme='dark']:has(.island-search--open) .ben-island {
+    background-color: rgb(29 31 39 / 0.95);
 }
 
 .island-beside {
@@ -458,7 +470,7 @@ body:has(.island-search--open) {
 }
 
 [theme='dark'] .island-search {
-    --island-glass: rgb(29 31 39 / 0.68);
+    --island-glass: rgb(29 31 39 / 0.95);
 
     background: rgb(255 255 255 / 0.06);
     border-color: rgb(255 255 255 / 0.1);
