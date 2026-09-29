@@ -98,13 +98,14 @@ function ReaderPageView({ windowId }: { windowId: WindowId }): JSX.Element {
     return <ArticleBook key={current.id} article={current.article} windowId={windowId} />
 }
 
-/** Keys that turn pages, unless focus is somewhere they mean something else (a field, a button, a menu). */
+/** Keys that turn pages, unless focus is somewhere they mean something else (a text field, an open menu,
+ *  Ben View). A button that merely kept focus after being clicked doesn't count. */
 function turnDirection(event: KeyboardEvent): 1 | -1 | null {
     if (event.altKey || event.ctrlKey || event.metaKey) {
         return null
     }
     const target = event.target as HTMLElement
-    if (target.closest('input, textarea, select, button, [contenteditable="true"], [role="menu"], [role="dialog"]')) {
+    if (target.closest('input, textarea, select, [contenteditable="true"], [role="menu"], [role="dialog"]')) {
         return null
     }
     if (event.key === 'ArrowRight' || event.key === 'PageDown' || (event.key === ' ' && !event.shiftKey)) {
@@ -136,6 +137,10 @@ function ArticleBook({ article, windowId }: { article: Article; windowId: Window
             const direction = turnDirection(event)
             if (direction) {
                 event.preventDefault()
+                // Let go of a button still focused from an earlier click, so Space can't also press it.
+                if (document.activeElement instanceof HTMLButtonElement) {
+                    document.activeElement.blur()
+                }
                 turn(direction)
             }
         }
@@ -207,6 +212,8 @@ function ArticleBook({ article, windowId }: { article: Article; windowId: Window
                         aria-label="Previous page"
                         className="reader-book__edge reader-book__edge--back absolute inset-y-0 left-0"
                         style={{ width: layout.left }}
+                        // Clicking a margin shouldn't take focus: it would stop the keys meaning "turn".
+                        onMouseDown={(e) => e.preventDefault()}
                         onClick={() => turn(-1)}
                         disabled={page === 0}
                     />
@@ -216,6 +223,7 @@ function ArticleBook({ article, windowId }: { article: Article; windowId: Window
                         aria-label="Next page"
                         className="reader-book__edge reader-book__edge--next absolute inset-y-0 right-0"
                         style={{ left: layout.left + layout.spreadWidth }}
+                        onMouseDown={(e) => e.preventDefault()}
                         onClick={() => turn(1)}
                         disabled={page + layout.perSpread >= pageCount}
                     />
