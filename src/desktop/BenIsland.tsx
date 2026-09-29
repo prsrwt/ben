@@ -4,18 +4,19 @@
 // Empty space on the bar drags the whole app window and double-clicking it maximises (Tauri's
 // `data-tauri-drag-region`, which only reacts to presses on the bar itself, not on its contents).
 
-import { useActions } from 'kea'
+import { useActions, useValues } from 'kea'
 import { useEffect, useRef } from 'react'
 
 import { APP_NAME } from '~/appConfig'
 import { toArticleUrl } from '~/reader/fetchArticle'
+import { ReaderIslandOptions } from '~/reader/ReaderIslandOptions'
 import { readerLogic } from '~/reader/readerLogic'
 
 import { IconSearch } from './icons'
 import { IS_DESKTOP_APP, appWindow } from './nativeWindow'
 import { ThemeMenu } from './ThemeMenu'
 import { TrafficLights } from './TrafficLights'
-import { MENU_BAR_HEIGHT } from './windowsLogic'
+import { MENU_BAR_HEIGHT, windowsLogic } from './windowsLogic'
 
 function SearchBar(): JSX.Element {
     const inputRef = useRef<HTMLInputElement>(null)
@@ -67,6 +68,8 @@ function SearchBar(): JSX.Element {
 }
 
 export function BenIsland(): JSX.Element {
+    const { focusedId } = useValues(windowsLogic)
+
     return (
         <header
             data-tauri-drag-region
@@ -84,6 +87,11 @@ export function BenIsland(): JSX.Element {
             {/* Centred on the bar regardless of what sits either side of it. */}
             <div className="absolute left-1/2 -translate-x-1/2 w-[min(340px,30%)]">
                 <SearchBar />
+            </div>
+
+            {/* Options for the app in front, just right of the search bar (whose half-width is min(170px, 15%)). */}
+            <div className="absolute left-[calc(50%+min(170px,15%)+8px)]">
+                {focusedId === 'reader' && <ReaderIslandOptions />}
             </div>
 
             <div className="ml-auto flex items-center gap-3">

@@ -3,15 +3,18 @@
 import './reader.css'
 
 import { useActions, useValues } from 'kea'
-import { useEffect, useRef } from 'react'
+import { ReactNode, useLayoutEffect, useRef } from 'react'
 
 import { toArticleUrl } from './fetchArticle'
 import { readerLogic } from './readerLogic'
 
 const hostOf = (url: string): string => new URL(url).hostname.replace(/^www\./, '')
 
+/** Where each page was scrolled to, by page id, so back and forward return to the same spot. */
+const scrollPositions = new Map<number, number>()
+
 /** Centred message for the states without an article. */
-function Notice({ title, children }: { title: string; children?: React.ReactNode }): JSX.Element {
+function Notice({ title, children }: { title: string; children?: ReactNode }): JSX.Element {
     return (
         <div className="h-full min-h-60 flex flex-col items-center justify-center gap-1 p-6 text-center">
             <h2 className="text-lg font-semibold m-0">{title}</h2>
@@ -21,30 +24,53 @@ function Notice({ title, children }: { title: string; children?: React.ReactNode
 }
 
 export function ReaderView(): JSX.Element {
-    const { status, url, article, error } = useValues(readerLogic)
-    const { openLink } = useActions(readerLogic)
+    const { current } = useValues(readerLogic)
+    const rootRef = useRef<HTMLDivElement>(null)
+    const pageId = current?.status === 'ready' ? current.id : null
+
+    // When a page shows, put it back where it was scrolled to (a new page starts at the top), then keep
+    // track of where it's scrolled. One effect, so the previous page stops recording before this one moves.
+    useLayoutEffect(() => {
+        const scroller = rootRef.current?.closest('.desktop-window__body')
+        if (!scroller) {
+            return
+        }
+        scroller.scrollTo(0, pageId === null ? 0 : (scrollPositions.get(pageId) ?? 0))
+        if (pageId === null) {
+            return
+        }
+        const onScroll = (): void => void scrollPositions.set(pageId, scroller.scrollTop)
+        scroller.addEventListener('scroll', onScroll, { passive: true })
+        return () => scroller.removeEventListener('scroll', onScroll)
+    }, [pageId])
+
+    return (
+        <div ref={rootRef} className="h-full">
+            <ReaderPageView />
+        </div>
+    )
+}
+
+function ReaderPageView(): JSX.Element {
+    const { current } = useValues(readerLogic)
+    const { openLink, reload } = useActions(readerLogic)
     const articleRef = useRef<HTMLElement>(null)
 
-    // A new article starts at the top of the window, not wherever the last one was scrolled to.
-    useEffect(() => {
-        articleRef.current?.closest('.desktop-window__body')?.scrollTo(0, 0)
-    }, [article])
-
-    if (status === 'loading' && url) {
+    if (current?.status === 'loading') {
         return (
             <Notice title="Opening…">
-                <p className="text-tertiary text-sm m-0">{hostOf(url)}</p>
+                <p className="text-tertiary text-sm m-0">{hostOf(current.url)}</p>
             </Notice>
         )
     }
-    if (status === 'failed' && url) {
+    if (current?.status === 'failed') {
         return (
             <Notice title="Couldn't open this page">
-                <p className="text-secondary text-sm m-0 max-w-sm">{error}</p>
-                <p className="text-tertiary text-xs m-0 max-w-sm break-all">{url}</p>
+                <p className="text-secondary text-sm m-0 max-w-sm">{current.error}</p>
+                <p className="text-tertiary text-xs m-0 max-w-sm break-all">{current.url}</p>
                 <button
                     type="button"
-                    onClick={() => openLink(url)}
+                    onClick={reload}
                     className="mt-3 px-3 py-1 rounded-md text-sm font-semibold text-primary bg-hover hover:bg-[color-mix(in_oklab,currentColor_12%,transparent)]"
                 >
                     Try again
@@ -52,7 +78,8 @@ export function ReaderView(): JSX.Element {
             </Notice>
         )
     }
-    if (status !== 'ready' || !article) {
+    const article = current?.article
+    if (!article) {
         return (
             <Notice title="Reader">
                 <p className="text-tertiary text-sm m-0">Paste a link into the search bar at the top (Ctrl K).</p>

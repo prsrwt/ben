@@ -4,7 +4,8 @@ Ben is a calm, single-purpose **study and reading browser** for Windows: a deskt
 styled as a small desktop with matte-glass windows. It is not a general web browser. The goal is to
 remove clutter and distraction from studying online. Planned apps, each still an empty window:
 
-- **Reader:** paste a link, get a clean article rendered as a book (pagination, clickable index). Next to build.
+- **Reader:** paste a link, get a clean article rendered as a book (pagination, clickable index). Being built:
+  clean article, clean-up and back/forward are done; book layout and index are still to come.
 - **Library:** saved articles and notes in folders, stored as plain files the user owns.
 - **Newspaper:** RSS sources laid out as an old-times broadsheet.
 - **Videos:** YouTube captions turned into readable, chaptered transcripts.
@@ -30,8 +31,9 @@ Build one app at a time, only when the user asks. Everything else stays empty.
 
 - **No Windows title bar and no tabs** (`decorations: false`). The only bar is **Ben Island**
   (`BenIsland.tsx`): full width, flush to the top edge, macOS-menu-bar style. Cat icon + "Ben" on the left,
-  a small pill search bar in the centre (Ctrl+K focuses it; submitting does nothing yet), then the theme
-  button and traffic lights on the right. Empty space on the bar drags the app (`data-tauri-drag-region`).
+  a small pill search bar in the centre (Ctrl+K focuses it; submitting a link opens it in the Reader, other
+  text does nothing yet). Just right of the search bar sit the front window's app options (Reader: back and
+  forward). Then the theme button and traffic lights on the right. Empty space on the bar drags the app (`data-tauri-drag-region`).
 - **Traffic lights on the right, Windows order:** yellow minimise, green maximise, red close
   (`TrafficLights.tsx`). Same component for the app and for every window. Plain arrow cursor, never a hand.
 - **Windows** (`Window.tsx`): all open at one size, `WINDOW_WIDTH` x `WINDOW_HEIGHT` in `windowsLogic.ts`.
@@ -58,7 +60,8 @@ Build one app at a time, only when the user asks. Everything else stays empty.
 | `src/styles.css` | Tailwind v4 plus Ben's colour tokens (`text-primary`, `text-secondary`, `text-tertiary`, `bg-hover`, `text-accent`...) for light and dark |
 | `src/desktop/desktop.css` | Wallpaper, glass, traffic lights, scrollbar, search bar, icon layers (plain CSS, native nesting) |
 | `src/desktop/apps.tsx` | The app registry (id, title, column). Add an app here |
-| `src/desktop/windowContent.tsx` | What each window shows. Every app is `EmptyWindow` for now |
+| `src/desktop/windowContent.tsx` | What each window shows. The Reader has its view; the rest are `EmptyWindow` |
+| `src/reader/` | The Reader: `fetchArticle.ts` (download via Tauri's HTTP plugin), `extractArticle.ts` (Readability + DOMPurify + clean-up, no app dependencies), `readerLogic.ts` (history: pages + index), `ReaderView.tsx`, `ReaderIslandOptions.tsx` (back/forward on the island), `reader.css` |
 | `src/desktop/windowsLogic.ts` | Kea logic: open windows, order, position, maximise, minimise |
 | `src/desktop/themeLogic.ts` | Kea logic: theme mode, persistence, live system theme |
 | `src/desktop/nativeWindow.ts` | Tauri window access; `IS_DESKTOP_APP` is false in a plain browser tab |
@@ -119,4 +122,7 @@ changes check behaviour in the real app, not only in a browser tab.
 ## Not done yet
 
 - Git repository on `main` since 2026-09-29. Ask before committing.
-- The search bar does nothing on submit; it becomes "open a link" with the Reader.
+- Plain text in the search bar (not a link) does nothing yet.
+- Agreed plan, in order: multiple Reader windows (Enter opens a new one, Ctrl+click too); island recents
+  pill left of the search bar (scroll switches app, click lists its open and recently closed windows);
+  middle-click menu (new window / side by side); then the Reader's book layout and clickable index.
