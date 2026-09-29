@@ -1,5 +1,7 @@
-// What each window shows. Every app is an empty placeholder for now; to build one out, give it
-// its own component and map its id to it here.
+// What each window shows. The Reader is built; the rest are empty placeholders for now. To build one
+// out, give it its own component and map its id to it here.
+
+import { ReaderView } from '~/reader/ReaderView'
 
 import { APPS, AppId } from './apps'
 
@@ -13,5 +15,5 @@ function EmptyWindow({ id }: { id: AppId }): JSX.Element {
 }
 
 export function WindowContent({ id }: { id: AppId }): JSX.Element {
-    return <EmptyWindow id={id} />
+    return id === 'reader' ? <ReaderView /> : <EmptyWindow id={id} />
 }

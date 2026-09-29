@@ -4,9 +4,12 @@
 // Empty space on the bar drags the whole app window and double-clicking it maximises (Tauri's
 // `data-tauri-drag-region`, which only reacts to presses on the bar itself, not on its contents).
 
+import { useActions } from 'kea'
 import { useEffect, useRef } from 'react'
 
 import { APP_NAME } from '~/appConfig'
+import { toArticleUrl } from '~/reader/fetchArticle'
+import { readerLogic } from '~/reader/readerLogic'
 
 import { IconSearch } from './icons'
 import { IS_DESKTOP_APP, appWindow } from './nativeWindow'
@@ -16,6 +19,7 @@ import { MENU_BAR_HEIGHT } from './windowsLogic'
 
 function SearchBar(): JSX.Element {
     const inputRef = useRef<HTMLInputElement>(null)
+    const { openLink } = useActions(readerLogic)
 
     // Ctrl+K (⌘K on a Mac) jumps to the search bar from anywhere.
     useEffect(() => {
@@ -31,8 +35,19 @@ function SearchBar(): JSX.Element {
     }, [])
 
     return (
-        // Submitting does nothing yet: opening links and searching arrive with the Reader.
-        <form role="search" className="w-full" onSubmit={(e) => e.preventDefault()}>
+        // Submitting a link opens it in the Reader. Anything else does nothing yet (search comes later).
+        <form
+            role="search"
+            className="w-full"
+            onSubmit={(e) => {
+                e.preventDefault()
+                const url = toArticleUrl(inputRef.current?.value ?? '')
+                if (url) {
+                    openLink(url)
+                    inputRef.current?.blur()
+                }
+            }}
+        >
             <label className="desktop-searchbar flex items-center gap-1.5 h-6 px-3 rounded-full text-xs">
                 <IconSearch className="size-3 shrink-0 text-tertiary" />
                 <input

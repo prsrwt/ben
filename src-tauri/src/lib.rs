@@ -1,6 +1,8 @@
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
+    // Downloads web pages for the Reader (the UI itself can't, browsers block cross-site requests).
+    .plugin(tauri_plugin_http::init())
     .setup(|app| {
       if cfg!(debug_assertions) {
         app.handle().plugin(
