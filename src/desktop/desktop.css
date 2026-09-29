@@ -1,0 +1,192 @@
+/* Ben's desktop: wallpaper, matte glass (island, windows, icons), traffic lights and the
+   window scrollbar. Plain CSS with native nesting; the colour tokens are in src/styles.css. */
+
+/* Wallpaper. public/desktop/background.jpg is set inline when present; otherwise a soft green
+   placeholder with a faint dot grid. */
+.desktop {
+    background-color: #7fa35a;
+    background-position: center;
+    background-size: cover;
+}
+
+.desktop--placeholder-bg {
+    background-image:
+        radial-gradient(rgb(255 255 255 / 0.12) 1px, transparent 1px),
+        linear-gradient(160deg, #9dbb6e 0%, #7fa35a 55%, #6b8f4a 100%);
+    background-size:
+        22px 22px,
+        cover;
+}
+
+/* Matte glass, like a nano-texture (etched, anti-glare) screen: the wallpaper shows through as a soft
+   blur, with little of its colour and no shine, and a very fine even grain on the surface. The grain is
+   a small pre-made tile (public/desktop/matte-grain.webp); it is the element's own background, so it
+   sits under the text and letters stay sharp. Windows, Ben Island and the desktop icons all use it. */
+:root {
+    --ben-matte-grain: url('/desktop/matte-grain.webp');
+    --ben-matte-blur: blur(40px) saturate(1.1);
+}
+
+.desktop-glass {
+    background-color: rgb(238 239 233 / 0.8);
+    background-image: var(--ben-matte-grain);
+    backdrop-filter: var(--ben-matte-blur);
+    border: 1px solid rgb(255 255 255 / 0.35);
+}
+
+/* Ben Island, the bar across the top edge, macOS-menu-bar style: thinner than the windows, with one
+   hairline underneath. */
+.ben-island {
+    background-color: rgb(238 239 233 / 0.7);
+    background-image: var(--ben-matte-grain);
+    backdrop-filter: var(--ben-matte-blur);
+    border-bottom: 1px solid rgb(0 0 0 / 0.08);
+}
+
+[theme='dark'] {
+    .desktop-glass {
+        background-color: rgb(29 31 39 / 0.78);
+        border-color: rgb(255 255 255 / 0.08);
+    }
+
+    .ben-island {
+        background-color: rgb(29 31 39 / 0.68);
+        border-bottom-color: rgb(255 255 255 / 0.08);
+    }
+}
+
+/* Traffic lights (window controls, macOS style). The symbols inside appear only while the pointer
+   is over the group, as on a Mac. A plain arrow cursor, even inside a draggable strip. */
+.ben-traffic-light {
+    cursor: default;
+    color: transparent;
+    box-shadow: inset 0 0 0 0.5px rgb(0 0 0 / 0.18);
+    transition: filter 100ms;
+
+    &:active {
+        filter: brightness(0.85);
+    }
+}
+
+.ben-traffic-lights:hover .ben-traffic-light,
+.ben-traffic-lights:focus-within .ben-traffic-light {
+    color: rgb(0 0 0 / 0.55);
+}
+
+/* Window scrollbar: the built-in one is hidden (browsers differ in whether a page may restyle it);
+   WindowScrollbar.tsx draws a grey pill instead, clear of the controls and rounded corners. */
+.desktop-window__body {
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar {
+        display: none;
+    }
+}
+
+.desktop-scrollbar__thumb {
+    background: color-mix(in oklab, currentColor 35%, transparent);
+    transition: background-color 150ms;
+    touch-action: none;
+
+    &:hover,
+    &:active {
+        background: color-mix(in oklab, currentColor 55%, transparent);
+    }
+}
+
+/* Island search field: a slightly brighter inset on the glass bar, with an accent ring when focused. */
+.desktop-searchbar {
+    background: rgb(255 255 255 / 0.55);
+    border: 1px solid rgb(0 0 0 / 0.08);
+    transition:
+        background-color 150ms,
+        box-shadow 150ms;
+
+    &:focus-within {
+        background: rgb(255 255 255 / 0.85);
+        box-shadow: 0 0 0 2px color-mix(in oklab, var(--ben-accent) 45%, transparent);
+    }
+
+    /* The browser's own clear (x) button on type="search" fields doesn't match the glass. */
+    & input::-webkit-search-cancel-button {
+        appearance: none;
+    }
+}
+
+[theme='dark'] .desktop-searchbar {
+    background: rgb(255 255 255 / 0.06);
+    border-color: rgb(255 255 255 / 0.1);
+
+    &:focus-within {
+        background: rgb(255 255 255 / 0.1);
+    }
+}
+
+/* Matte-glass desktop icons (GlassIcon.tsx). Every layer is masked to the icon's shape. The frost
+   is Ben Island's light-mode matte glass exactly, so icons and bar read as one material. It stays light
+   in dark mode too: the icons sit on the wallpaper, not on the app's UI. */
+.desktop-glass-icon__shadow {
+    /* A faint, tight shadow: just enough edge to separate the shape from busy wallpaper. */
+    background: rgb(0 0 0 / 0.22);
+    filter: blur(2px);
+    transform: translateY(1px);
+}
+
+.desktop-glass-icon__frost {
+    background: rgb(238 239 233 / 0.7) var(--ben-matte-grain);
+    backdrop-filter: var(--ben-matte-blur);
+}
+
+/* Hairline rim traced around the shape (half inside, half outside the edge), so pale glass keeps
+   its shape on pale wallpaper. Stroke width is in the icon's 24-unit grid: 0.6 is about 1px at 40px. */
+.desktop-glass-icon__rim {
+    fill: none;
+    stroke: rgb(0 0 0 / 0.28);
+    stroke-width: 0.6;
+    stroke-linejoin: round;
+    pointer-events: none;
+}
+
+/* No sheen at rest (the island has none); a soft brightening on hover or keyboard focus. */
+.desktop-glass-icon__sheen {
+    background: rgb(255 255 255 / 0.22);
+    opacity: 0;
+    transition: opacity 150ms;
+}
+
+.group:hover .desktop-glass-icon__sheen,
+.group:focus-visible .desktop-glass-icon__sheen {
+    opacity: 1;
+}
+
+/* Without backdrop blur, glass falls back to nearly solid so everything stays readable. */
+@supports not (backdrop-filter: blur(1px)) {
+    .desktop-glass,
+    .ben-island,
+    .desktop-glass-icon__frost {
+        background-color: rgb(238 239 233 / 0.97);
+    }
+
+    [theme='dark'] .desktop-glass,
+    [theme='dark'] .ben-island {
+        background-color: rgb(29 31 39 / 0.97);
+    }
+}
+
+/* Windows fade and scale in when they open. */
+.desktop-window {
+    animation: desktop-window-open 140ms ease-out;
+}
+
+@keyframes desktop-window-open {
+    from {
+        opacity: 0;
+        transform: scale(0.97);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .desktop-window {
+        animation: none;
+    }
+}

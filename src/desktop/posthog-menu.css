@@ -1,0 +1,159 @@
+/* PostHog's dropdown menu look, copied from PostHog's code (MIT, see LICENSE-POSTHOG): the rules
+   from Popover.scss, LemonButton.scss (tertiary, small, full width) and base.scss (h5) that applied
+   to Ben's theme menu when it was a real LemonMenu, with their tokens resolved. Only the rules that
+   menu used are here; ThemeMenu.tsx renders the same class names and structure. */
+
+.ph-menu {
+    --ph-popover-bg: #fff;
+    --ph-popover-border: #ccc;
+    --ph-elevation: #dadbd2;
+    --ph-text: #111;
+    --ph-text-secondary: hsl(0deg 0% 25%);
+    --ph-hover: color-mix(in oklab, black 7.5%, transparent);
+    --ph-active: color-mix(in oklab, black 5%, transparent);
+}
+
+[theme='dark'] .ph-menu {
+    --ph-popover-bg: hsl(235deg 8% 15%);
+    --ph-popover-border: #4a4c52;
+    --ph-elevation: #35373e;
+    --ph-text: #fff;
+    --ph-text-secondary: hsl(0deg 0% 65%);
+    --ph-hover: color-mix(in oklab, white 7.5%, transparent);
+    --ph-active: color-mix(in oklab, white 5%, transparent);
+}
+
+/* Popover.scss */
+.ph-menu.Popover {
+    z-index: 1100;
+    display: flex;
+    flex-direction: row;
+    isolation: isolate;
+    perspective: 80rem;
+    perspective-origin: top;
+}
+
+.ph-menu .Popover__box {
+    position: relative;
+    flex-grow: 1;
+    max-width: 100%;
+    margin-top: 0.25rem;
+    background: var(--ph-popover-bg);
+    border: 1px solid var(--ph-popover-border);
+    border-radius: 0.625rem;
+    box-shadow: 0 3px 0 var(--ph-elevation);
+    opacity: 0;
+    transition:
+        opacity 50ms ease,
+        transform 50ms ease;
+    transform: rotateX(-6deg);
+    transform-origin: top;
+}
+
+.ph-menu.Popover--enter-active .Popover__box {
+    opacity: 1;
+    transform: none;
+}
+
+.ph-menu .Popover__content {
+    max-height: 100%;
+    padding: 0.25rem;
+    border-radius: calc(0.625rem - 1px);
+}
+
+/* base.scss: h5 */
+.ph-menu h5 {
+    margin: 0.25rem 0.5rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    line-height: 1.5rem;
+    color: var(--ph-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.075em;
+}
+
+/* LemonMenu lists: 1px between items (deprecated-space-y-px) */
+.ph-menu ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.ph-menu li + li {
+    margin-top: 1px;
+}
+
+/* LemonButton.scss: tertiary, small, full width */
+.ph-menu .LemonButton {
+    --lemon-button-icon-opacity: 0.8;
+
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    width: 100%;
+    padding: 0;
+    font-family: var(--font-sans);
+    cursor: pointer;
+    user-select: none;
+    background: none;
+    border: 0;
+    border-radius: 0.375rem;
+    transition:
+        opacity 200ms ease,
+        transform 200ms ease;
+
+    &:hover,
+    &:focus-visible {
+        --lemon-button-icon-opacity: 0.75;
+
+        background-color: var(--ph-hover);
+    }
+
+    &.LemonButton--active {
+        --lemon-button-icon-opacity: 0.75;
+
+        background-color: var(--ph-active);
+    }
+
+    &:focus-visible {
+        outline: none;
+    }
+
+    & .LemonButton__chrome {
+        display: flex;
+        flex: 1;
+        gap: 0.5rem;
+        align-items: center;
+        justify-content: flex-start;
+        width: 100%;
+        min-width: 0;
+        min-height: 2.0625rem;
+        padding: 0.25rem 0.5rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        line-height: 1.5rem;
+        color: var(--ph-text);
+        text-align: left;
+    }
+
+    & .LemonButton__icon {
+        display: flex;
+        flex-shrink: 0;
+        place-items: center center;
+        font-size: 1.25rem;
+        transition: color 200ms ease;
+
+        & .LemonIcon {
+            opacity: var(--lemon-button-icon-opacity);
+        }
+    }
+
+    & .LemonButton__content {
+        display: flex;
+        flex: 1;
+        align-items: center;
+        min-width: 0;
+        line-height: initial;
+        white-space: nowrap;
+    }
+}
