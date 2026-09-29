@@ -113,26 +113,31 @@
     }
 }
 
-/* The recents pill left of the search bar (RecentsPill.tsx): the same inset look as the search field. */
+/* The apps pill left of the search bar (IslandApps.tsx): the same inset look as the search field. */
 .desktop-island-pill {
     background: rgb(255 255 255 / 0.55);
     border: 1px solid rgb(0 0 0 / 0.08);
-    transition: background-color 150ms;
-
-    &:hover,
-    &[aria-expanded='true'] {
-        background: rgb(255 255 255 / 0.85);
-    }
 }
 
 [theme='dark'] .desktop-island-pill {
     background: rgb(255 255 255 / 0.06);
     border-color: rgb(255 255 255 / 0.1);
+}
 
-    &:hover,
-    &[aria-expanded='true'] {
-        background: rgb(255 255 255 / 0.1);
-    }
+/* How many windows an app has, on the top-right of its icon in the pill. */
+.desktop-island-count {
+    min-width: 14px;
+    height: 14px;
+    padding: 0 3px;
+    border-radius: 7px;
+    font-size: 9px;
+    font-weight: 700;
+    line-height: 14px;
+    text-align: center;
+    color: var(--ben-page);
+    background: var(--ben-text);
+    box-shadow: 0 0 0 1.5px var(--ben-page);
+    pointer-events: none;
 }
 
 [theme='dark'] .desktop-searchbar {
