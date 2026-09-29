@@ -16,6 +16,7 @@ import { IconSearch } from './icons'
 import { IS_DESKTOP_APP, appWindow } from './nativeWindow'
 import { ThemeMenu } from './ThemeMenu'
 import { TrafficLights } from './TrafficLights'
+import { RecentsPill } from './RecentsPill'
 import { MENU_BAR_HEIGHT, windowsLogic } from './windowsLogic'
 
 function SearchBar(): JSX.Element {
@@ -83,6 +84,12 @@ export function BenIsland(): JSX.Element {
                 <img src="/ben-icon.png" alt="" className="size-5 rounded-[5px] shadow-[0_0_0_0.5px_rgba(0,0,0,0.2)]" />
                 <span className="text-[13px] font-bold tracking-tight text-primary">{APP_NAME}</span>
             </span>
+
+            {/* The recents pill, just left of the search bar (whose half-width is min(170px, 15%)). Hidden on
+                narrow screens, where there's no room beside the search bar. */}
+            <div className="absolute right-[calc(50%+min(170px,15%)+8px)] hidden sm:block">
+                <RecentsPill />
+            </div>
 
             {/* Centred on the bar regardless of what sits either side of it. */}
             <div className="absolute left-1/2 -translate-x-1/2 w-[min(340px,30%)]">

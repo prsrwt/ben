@@ -8,6 +8,7 @@
 import { CSSProperties, useMemo } from 'react'
 
 import { AppId } from './apps'
+import { cn } from './cn'
 
 /** SVG bodies, drawn white on a 24×24 grid. Cut-outs use the even-odd rule inside one path. */
 /** SVG bodies, drawn white on a 24×24 grid. Cut-outs use the even-odd rule inside one path. */
@@ -34,6 +35,12 @@ function maskStyle(id: AppId): CSSProperties {
         maskPosition: 'center',
         WebkitMaskPosition: 'center',
     }
+}
+
+/** The same silhouette as a flat glyph in the current text colour, for small places such as the island. */
+export function AppGlyph({ id, className }: { id: AppId; className?: string }): JSX.Element {
+    const mask = useMemo(() => maskStyle(id), [id])
+    return <span className={cn('block shrink-0 bg-current', className)} style={mask} aria-hidden />
 }
 
 export function GlassIcon({ id }: { id: AppId }): JSX.Element {

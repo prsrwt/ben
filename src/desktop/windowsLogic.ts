@@ -51,6 +51,7 @@ export interface windowsLogicActions {
     openApp: (appId: AppId) => { appId: AppId; id: WindowId; viewport: { width: number; height: number } }
     /** Always opens a new window for the app. */
     openWindow: (appId: AppId, id?: WindowId) => { appId: AppId; id: WindowId; viewport: { width: number; height: number } }
+    /** Brings a window to the front, un-minimising it if needed. */
     focusWindow: (id: WindowId) => { id: WindowId }
     closeWindow: (id: WindowId) => { id: WindowId }
     moveWindow: (id: WindowId, x: number, y: number) => { id: WindowId; x: number; y: number }
@@ -121,7 +122,7 @@ export const windowsLogic = kea<windowsLogicType>([
                 openWindow: (state, { appId, id, viewport }) => [...state, initialPlacement(id, appId, state.length, viewport)],
                 focusWindow: (state, { id }) => {
                     const existing = state.find((w) => w.id === id)
-                    return existing ? [...withoutWindow(state, id), existing] : state
+                    return existing ? [...withoutWindow(state, id), { ...existing, minimized: false }] : state
                 },
                 closeWindow: (state, { id }) => withoutWindow(state, id),
                 moveWindow: (state, { id, x, y }) => state.map((w) => (w.id === id ? { ...w, x, y } : w)),

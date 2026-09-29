@@ -35,7 +35,10 @@ Build one app at a time, only when the user asks. Everything else stays empty.
   (`BenIsland.tsx`): full width, flush to the top edge, macOS-menu-bar style. Cat icon + "Ben" on the left,
   a small pill search bar in the centre (Ctrl+K focuses it; submitting a link opens it in the Reader, other
   text does nothing yet). Just right of the search bar sit the front window's app options (Reader: back and
-  forward). Then the theme button and traffic lights on the right. Empty space on the bar drags the app (`data-tauri-drag-region`).
+  forward). Just left of it sits the recents pill (`RecentsPill.tsx`): the front window's app and its window
+  count; the scroll wheel switches app (one per notch, only apps with windows), a click lists its windows
+  (plus, for the Reader, the last 5 pages read that aren't open, and "Show all history"). Then the theme
+  button and traffic lights on the right. Empty space on the bar drags the app (`data-tauri-drag-region`).
 - **Traffic lights on the right, Windows order:** yellow minimise, green maximise, red close
   (`TrafficLights.tsx`). Same component for the app and for every window. Plain arrow cursor, never a hand.
 - **Windows** (`Window.tsx`): all open at one size, `WINDOW_WIDTH` x `WINDOW_HEIGHT` in `windowsLogic.ts`.
@@ -82,7 +85,7 @@ Only these came from PostHog, copied so the theme menu looks and behaves exactly
 LemonMenu. Keep them identical unless asked:
 
 - `posthog-menu.css`: the Popover, LemonButton (tertiary, small) and h5 rules, with tokens resolved.
-- `useKeyboardNavigation.ts`: LemonMenu's arrow-key hook, unchanged. (oxlint warns about reading a ref during render in `ThemeMenu.tsx`; that is PostHog's own pattern and safe here.)
+- `useKeyboardNavigation.ts`: LemonMenu's arrow-key hook, unchanged. (oxlint warns about reading a ref during render in `ThemeMenu.tsx` and `RecentsPill.tsx`; that is PostHog's own pattern and safe here. The hook sizes its item list once, so `RecentsPill` remounts its menu when the item count changes.)
 - `icons.tsx`: four `@posthog/icons` drawings (Search, Brightness, Palette, Laptop). The package itself cost ~260 KB of JS, so it is not installed.
 
 ## Commands
@@ -130,7 +133,4 @@ changes check behaviour in the real app, not only in a browser tab.
 
 - Git repository on `main` since 2026-09-29. Ask before committing.
 - Plain text in the search bar (not a link) does nothing yet.
-- Agreed plan, in order: island recents
-  pill left of the search bar (scroll switches app, click lists its open windows, the last 5 closed from
-  History, and "Show all history");
-  middle-click menu (new window / side by side); then the Reader's book layout and clickable index.
+- Agreed plan, in order: middle-click menu (new window / side by side); then the Reader's book layout and clickable index.

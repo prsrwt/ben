@@ -112,7 +112,7 @@ export function ThemeMenu(): JSX.Element {
 
 /** Mirrors PostHog's Popover: mounted first, then marked "enter-active" on the next frame, so the
  *  box tilts and fades in. Mounted fresh on every open, so it always starts from the closed state. */
-function PopoverFrame({ children }: { children: ReactNode }): JSX.Element {
+export function PopoverFrame({ children }: { children: ReactNode }): JSX.Element {
     const [entered, setEntered] = useState(false)
     useEffect(() => {
         const frame = requestAnimationFrame(() => setEntered(true))
