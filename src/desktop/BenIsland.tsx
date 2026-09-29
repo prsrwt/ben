@@ -13,7 +13,7 @@ import { IS_DESKTOP_APP, appWindow } from './nativeWindow'
 import { ThemeMenu } from './ThemeMenu'
 import { TrafficLights } from './TrafficLights'
 import { IslandApps } from './IslandApps'
-import { SearchPill } from './SearchPalette'
+import { IslandSearch, IslandSearchSpace } from './SearchPalette'
 import { MENU_BAR_HEIGHT, windowsLogic } from './windowsLogic'
 
 export function BenIsland(): JSX.Element {
@@ -41,7 +41,8 @@ export function BenIsland(): JSX.Element {
 
             {/* Centred on the bar regardless of what sits either side of it. */}
             <div className="absolute left-1/2 -translate-x-1/2 w-[min(340px,30%)]">
-                <SearchPill />
+                <IslandSearchSpace />
+                <IslandSearch />
             </div>
 
             {/* Options for the app in front, just right of the search bar (whose half-width is min(170px, 15%)). */}

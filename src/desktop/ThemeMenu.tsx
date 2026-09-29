@@ -65,7 +65,7 @@ export function ThemeMenu(): JSX.Element {
                 onClick={() => setOpen((isOpen) => !isOpen)}
                 data-attr="island-theme"
             >
-                <IconPalette className="size-4" />
+                <IconPalette className="size-[18px]" />
             </button>
             {open && (
                 <PopoverFrame>

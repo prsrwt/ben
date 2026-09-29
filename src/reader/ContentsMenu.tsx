@@ -15,7 +15,7 @@ import { openBook, useCurrentSection } from './openBooks'
 /** A small list icon, drawn inline. */
 function IconContents(): JSX.Element {
     return (
-        <svg viewBox="0 0 16 16" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden>
+        <svg viewBox="0 0 16 16" className="size-[18px]" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden>
             <path d="M6 4h7M6 8h7M6 12h7" />
             <circle cx="3" cy="4" r="0.4" fill="currentColor" />
             <circle cx="3" cy="8" r="0.4" fill="currentColor" />
@@ -55,7 +55,7 @@ export function ContentsButton({ windowId, enabled }: { windowId: WindowId; enab
         <div ref={rootRef} className="relative">
             <button
                 type="button"
-                className="desktop-island-pill flex items-center gap-1.5 h-6 pl-2 pr-3 rounded-full text-xs text-secondary enabled:hover:text-primary disabled:opacity-35 focus-visible:outline-2 focus-visible:outline-current"
+                className="desktop-island-pill flex items-center gap-1.5 h-7 pl-2.5 pr-3.5 rounded-full text-xs text-secondary enabled:hover:text-primary disabled:opacity-35 focus-visible:outline-2 focus-visible:outline-current"
                 onClick={() => setOpen((isOpen) => !isOpen)}
                 disabled={!enabled}
                 aria-haspopup="menu"

@@ -35,7 +35,7 @@ export function IslandApps(): JSX.Element | null {
         return null
     }
     return (
-        <div className="desktop-island-pill flex items-center gap-0.5 h-6 px-0.5 rounded-full" role="toolbar" aria-label="Open apps">
+        <div className="desktop-island-pill flex items-center gap-0.5 h-7 px-0.5 rounded-full" role="toolbar" aria-label="Open apps">
             {apps.map((appId) => (
                 <AppButton
                     key={appId}
@@ -158,7 +158,7 @@ function AppButtonWithMenu({ appId, windows, isFront, open, setOpen, items }: Ap
                 ref={referenceRef}
                 type="button"
                 className={cn(
-                    'relative size-5 flex items-center justify-center rounded-full text-secondary hover:text-primary hover:bg-hover',
+                    'relative size-6 flex items-center justify-center rounded-full text-secondary hover:text-primary hover:bg-hover',
                     (isFront || open) && 'text-primary bg-hover'
                 )}
                 aria-haspopup="menu"
@@ -168,7 +168,7 @@ function AppButtonWithMenu({ appId, windows, isFront, open, setOpen, items }: Ap
                 onClick={() => setOpen(!open)}
                 data-attr={`island-app-${appId}`}
             >
-                <AppGlyph id={appId} className="size-3.5" />
+                <AppGlyph id={appId} className="size-4" />
                 {windows.length > 1 && (
                     <span className="desktop-island-count absolute -top-1.5 -right-1.5" aria-hidden>
                         {windows.length}

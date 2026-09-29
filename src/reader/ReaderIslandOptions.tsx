@@ -13,7 +13,7 @@ import { readerLogic, readerWindowState } from './readerLogic'
 /** A small chevron, drawn inline; points left for back, right for forward. */
 function Chevron({ direction }: { direction: 'left' | 'right' }): JSX.Element {
     return (
-        <svg viewBox="0 0 16 16" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <svg viewBox="0 0 16 16" className="size-5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
             <path d={direction === 'left' ? 'M10 3.5 5.5 8l4.5 4.5' : 'M6 3.5 10.5 8 6 12.5'} />
         </svg>
     )

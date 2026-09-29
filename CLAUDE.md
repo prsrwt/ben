@@ -34,9 +34,10 @@ Build one app at a time, only when the user asks. Everything else stays empty.
 
 - **No Windows title bar and no tabs** (`decorations: false`). The only bar is **Ben Island**
   (`BenIsland.tsx`): full width, flush to the top edge, macOS-menu-bar style. Cat icon + "Ben" on the left,
-  a small pill search bar in the centre. It, Ctrl+G or Ctrl+K opens the search box (`SearchPalette.tsx`),
-  Raycast/Spotlight style, centred over everything and nearly solid so it reads well: a link opens in a new
-  Reader window; other text does nothing yet (a hint under the box says so). Just right of the search bar sit the front window's app options (Reader: back and
+  a small pill search bar in the centre (`SearchPalette.tsx`): click it, Ctrl+K or Ctrl+G and it grows, widening and
+  dropping out of the bar with the bar curving down around it (drawn just above the island, so the part below the
+  bar can blur what's beneath). A link opens in a new Reader window; other text does nothing yet. A centred
+  Spotlight-style box was tried and dropped on 2026-09-30. Just right of the search bar sit the front window's app options (Reader: back and
   forward, then the Contents pill: icon + the section being read; click lists sections with page numbers). Just left of it sits the apps pill (`IslandApps.tsx`): an
   icon per app with open windows, a count on top when it has several; clicking one lists its windows
   (plus, for the Reader, the last 5 pages read that aren't open, and "Show all history"). Then the theme

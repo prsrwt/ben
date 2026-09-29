@@ -1,97 +1,87 @@
-// Search, Raycast / Spotlight style: Ctrl+G (or Ctrl+K, or clicking the pill on Ben Island) brings a large
-// search box to the middle of the screen, over everything. A link opens in a new Reader window; plain text
-// does nothing yet (searching comes later), which the hint under the box says. Esc, a click outside, or the
-// shortcut again closes it.
+// Search on Ben Island. At rest it's the small pill in the middle of the bar. Clicking it, or Ctrl+G (easy
+// to reach from either Ctrl key) or Ctrl+K, makes it grow: it widens and drops down out of the bar, the bar
+// curving down around it, with the field and its text larger. Esc, clicking elsewhere, or opening a link
+// shrinks it back. A link opens in a new Reader window; plain text does nothing yet (searching comes later).
+//
+// It's drawn just above the island rather than inside it: the island's glass would stop the part hanging
+// below the bar from blurring the windows beneath. The island keeps an empty space where the pill sits.
 
 import { useActions } from 'kea'
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 
 import { toArticleUrl } from '~/reader/fetchArticle'
 import { readerLogic } from '~/reader/readerLogic'
 
+import { cn } from './cn'
 import { IconSearch } from './icons'
 
-/** Ctrl+G (easy to reach from either Ctrl key), and Ctrl+K as before. ⌘ on a Mac. */
-const isShortcut = (event: KeyboardEvent): boolean =>
-    (event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey && ['g', 'k'].includes(event.key.toLowerCase())
+/** Ctrl (⌘ on a Mac) plus a letter, and nothing else held. */
+const isCtrlKey = (event: KeyboardEvent, letter: string): boolean =>
+    (event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey && event.key.toLowerCase() === letter
 
-/** The pill on Ben Island, and the box it opens. */
-export function SearchPill(): JSX.Element {
+/** The pill's place on the island: keeps the space, while the search itself floats above. */
+export function IslandSearchSpace(): JSX.Element {
+    return <div className="h-7 w-full" aria-hidden />
+}
+
+export function IslandSearch(): JSX.Element {
+    const inputRef = useRef<HTMLInputElement>(null)
+    const { openLinkInNewWindow } = useActions(readerLogic)
     const [open, setOpen] = useState(false)
+
+    const close = (): void => {
+        setOpen(false)
+        inputRef.current?.blur()
+    }
 
     useEffect(() => {
         const onKeyDown = (event: KeyboardEvent): void => {
-            if (isShortcut(event)) {
+            if (isCtrlKey(event, 'g') || isCtrlKey(event, 'k')) {
                 // Also stops the browser engine's own Ctrl+G ("find next").
                 event.preventDefault()
-                setOpen((isOpen) => !isOpen)
+                inputRef.current?.focus()
+                inputRef.current?.select()
             }
         }
         window.addEventListener('keydown', onKeyDown)
         return () => window.removeEventListener('keydown', onKeyDown)
     }, [])
 
-    return (
-        <>
-            <button
-                type="button"
-                className="desktop-searchbar w-full flex items-center gap-1.5 h-6 px-3 rounded-full text-xs text-tertiary cursor-default"
-                onClick={() => setOpen(true)}
-                aria-haspopup="dialog"
-                data-attr="island-search"
-            >
-                <IconSearch className="size-3 shrink-0" />
-                <span className="flex-1 min-w-0 text-left truncate">Search or paste a link</span>
-                <kbd className="hidden sm:block text-xxs font-sans">Ctrl G</kbd>
-            </button>
-            {open && <SearchPalette onClose={() => setOpen(false)} />}
-        </>
-    )
-}
-
-function SearchPalette({ onClose }: { onClose: () => void }): JSX.Element {
-    const { openLinkInNewWindow } = useActions(readerLogic)
-    const inputRef = useRef<HTMLInputElement>(null)
-
-    useEffect(() => {
-        inputRef.current?.focus()
-    }, [])
-
-    return (
-        <div
-            className="fixed inset-0 z-[1300]"
-            onPointerDown={(e) => e.target === e.currentTarget && onClose()}
-            onKeyDown={(e) => e.key === 'Escape' && onClose()}
-            role="dialog"
-            aria-label="Search"
+    return createPortal(
+        <form
+            role="search"
+            className={cn('island-search', open && 'island-search--open')}
+            onSubmit={(e) => {
+                e.preventDefault()
+                const url = toArticleUrl(inputRef.current?.value ?? '')
+                if (url && inputRef.current) {
+                    openLinkInNewWindow(url)
+                    // The link now lives in its window; a leftover address wouldn't say which one.
+                    inputRef.current.value = ''
+                    close()
+                }
+            }}
+            onKeyDown={(e) => e.key === 'Escape' && close()}
         >
-            <form
-                role="search"
-                className="search-palette absolute left-1/2 top-[22vh] w-[min(680px,90vw)] -translate-x-1/2 rounded-2xl"
-                onSubmit={(e) => {
-                    e.preventDefault()
-                    const url = toArticleUrl(inputRef.current?.value ?? '')
-                    if (url) {
-                        openLinkInNewWindow(url)
-                        onClose()
-                    }
-                }}
-            >
-                <label className="flex items-center gap-3.5 h-16 px-6">
-                    <IconSearch className="size-6 shrink-0 text-secondary" />
-                    <input
-                        ref={inputRef}
-                        type="search"
-                        placeholder="Search or paste a link"
-                        aria-label="Search or paste a link"
-                        className="flex-1 min-w-0 bg-transparent outline-none text-xl font-medium text-primary placeholder:text-tertiary placeholder:font-normal"
-                        data-attr="search-palette-input"
-                    />
-                </label>
-                <p className="m-0 px-6 py-2.5 border-t border-subtle text-xs text-secondary">
-                    Paste a link and press Enter to read it. Searching the web comes later. Esc closes.
-                </p>
-            </form>
-        </div>
+            <label className="island-search__field">
+                <IconSearch className="island-search__icon shrink-0 text-tertiary" />
+                <input
+                    ref={inputRef}
+                    type="search"
+                    placeholder="Search or paste a link"
+                    aria-label="Search or paste a link"
+                    className="flex-1 min-w-0 bg-transparent outline-none text-primary placeholder:text-tertiary"
+                    onFocus={() => setOpen(true)}
+                    onBlur={() => setOpen(false)}
+                    data-attr="island-search"
+                />
+                <kbd className="island-search__key hidden sm:block text-xxs text-tertiary font-sans">Ctrl G</kbd>
+            </label>
+            <p className="island-search__hint m-0 text-xs text-secondary">
+                Paste a link and press Enter to read it. Searching the web comes later. Esc closes.
+            </p>
+        </form>,
+        document.body
     )
 }
