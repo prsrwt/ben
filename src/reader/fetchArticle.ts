@@ -72,6 +72,8 @@ async function fetchPage(url: string): Promise<{ url: string; html: string }> {
                 'User-Agent': navigator.userAgent,
                 Accept: 'text/html,application/xhtml+xml;q=0.9,*/*;q=0.8',
                 'Accept-Language': navigator.languages.join(','),
+                // No Origin header, as a browser opening a page sends none; some sites refuse requests with one.
+                Origin: '',
             },
             connectTimeout: CONNECT_TIMEOUT_MS,
         })

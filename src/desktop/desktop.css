@@ -287,6 +287,8 @@
     /* Closing settles smoothly back into the bar; opening (below) overshoots a little, like liquid. */
     --island-search-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
 
+    /* Lets the open notch animate to a height that fits its results. */
+    interpolate-size: allow-keywords;
     position: fixed;
     z-index: 1001;
     top: 5px;
@@ -380,7 +382,8 @@
 
     top: 0;
     width: min(540px, 60vw);
-    height: 90px;
+    height: auto;
+    padding-bottom: 14px;
     border-color: transparent;
     background-color: transparent;
     /* The part over the bar is empty: clicks there reach the bar's own buttons. */
@@ -440,6 +443,52 @@
         visibility: visible;
         transition-delay: 140ms;
     }
+}
+
+/* Search results in the notch: grouped, one row each, the chosen one highlighted. */
+.island-search__results {
+    position: relative;
+    max-height: min(60vh, 460px);
+    overflow-y: auto;
+    padding: 4px 10px 0;
+    scrollbar-width: none;
+}
+
+.island-search__group {
+    margin: 8px 12px 2px;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 20px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ben-text-3);
+}
+
+.island-search__result {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    height: 34px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 10px;
+    background: none;
+    font: inherit;
+    font-size: 14px;
+    text-align: left;
+    color: var(--ben-text);
+    cursor: default;
+}
+
+.island-search__result--chosen {
+    background: var(--ben-hover);
+}
+
+.island-search__status {
+    margin: 8px 12px 0;
+    font-size: 12px;
+    color: var(--ben-text-3);
 }
 
 /* While the notch is open the bar's hairline goes, so bar and notch are one surface, and the icons either

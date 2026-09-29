@@ -36,7 +36,9 @@ Build one app at a time, only when the user asks. Everything else stays empty.
   (`BenIsland.tsx`): full width, flush to the top edge, macOS-menu-bar style. Cat icon + "Ben" on the left,
   a small pill search bar in the centre (`SearchPalette.tsx`): click it, Ctrl+K or Ctrl+G and it grows, widening and
   dropping out of the bar with the bar curving down around it (drawn just above the island, so the part below the
-  bar can blur what's beneath). A link opens in a new Reader window; other text does nothing yet. A centred
+  bar can blur what's beneath). Typing searches (`src/search/`): pages read before (History), Wikipedia's title search, and the web via DuckDuckGo's
+  HTML page (ads dropped); ↑ ↓ + Enter open a result in a new Reader window, a pasted link opens directly. Requests
+  send no Origin header (plugin feature `unsafe-headers`; DuckDuckGo and some sites refuse one). A centred
   Spotlight-style box was tried and dropped on 2026-09-30. Just right of the search bar sit the front window's app options (Reader: back and
   forward, then the Contents pill: icon + the section being read; click lists sections with page numbers). Just left of it sits the apps pill (`IslandApps.tsx`): an
   icon per app with open windows, a count on top when it has several; clicking one lists its windows
@@ -154,6 +156,5 @@ changes check behaviour in the real app, not only in a browser tab.
 ## Not done yet
 
 - Git repository on `main` since 2026-09-29. Ask before committing.
-- Plain text in the search bar (not a link) does nothing yet.
 - Agreed plan: a lightweight phase (measure release memory, fewer old articles kept per Reader window,
   pictures loaded only near their page).
