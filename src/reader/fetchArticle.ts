@@ -1,22 +1,13 @@
-// Turns a link into a clean article: download the page (through Tauri's HTTP plugin, because the
-// UI can't fetch other sites itself), find the article inside it with Mozilla Readability (the
-// engine behind Firefox's Reader View), then strip anything unsafe with DOMPurify before Ben shows it.
+// Turns a link into a clean article: download the page through Tauri's HTTP plugin (the UI can't
+// fetch other sites itself, browsers block cross-site requests), then extract the article from it.
 
-import { Readability } from '@mozilla/readability'
 import { fetch } from '@tauri-apps/plugin-http'
-import DOMPurify from 'dompurify'
 
 import { IS_DESKTOP_APP } from '~/desktop/nativeWindow'
 
-export interface Article {
-    /** The page's final address, after redirects. */
-    url: string
-    title: string
-    byline: string | null
-    siteName: string | null
-    /** Sanitised article HTML: no scripts, forms, embeds or inline styles. */
-    html: string
-}
+import { Article, extractArticle } from './extractArticle'
+
+export type { Article } from './extractArticle'
 
 /** Gives up on a server that doesn't answer within this long. */
 const CONNECT_TIMEOUT_MS = 15_000
@@ -59,12 +50,20 @@ function decodePage(bytes: ArrayBuffer, contentType: string): string {
     return new TextDecoder().decode(bytes)
 }
 
-/** Downloads a page and extracts its article. Rejects with a message fit to show the user. */
-export async function fetchArticle(url: string): Promise<Article> {
-    if (!IS_DESKTOP_APP) {
-        throw new Error('The Reader works in the Ben app, not in a browser tab.')
-    }
+/** How many in-page redirects to follow before giving up (they can loop). */
+const MAX_PAGE_REDIRECTS = 3
 
+/** Where a page forwards to, if it's only a stand-in: <meta http-equiv="refresh" content="0; url=…">,
+ *  which browsers follow but HTTP clients don't. Pages that merely reload themselves (no url, or a
+ *  long delay, as some news sites do) aren't redirects. */
+function pageRedirect(html: string, pageUrl: string): string | null {
+    const tag = /<meta[^>]+http-equiv=["']?refresh[^>]*>/i.exec(html)?.[0]
+    const match = tag && /content=["']?\s*(\d+)\s*[;,]\s*url\s*=\s*['"]?([^"'>\s]+)/i.exec(tag)
+    return match && Number(match[1]) <= 5 ? toArticleUrl(new URL(match[2], pageUrl).href) : null
+}
+
+/** Downloads one page: its address after redirects and its HTML. */
+async function fetchPage(url: string): Promise<{ url: string; html: string }> {
     let response: Response
     try {
         response = await fetch(url, {
@@ -86,26 +85,21 @@ export async function fetchArticle(url: string): Promise<Article> {
     if (contentType && !/html/i.test(contentType)) {
         throw new Error("This link isn't a web page, so there's no article to read.")
     }
+    return { url: response.url || url, html: decodePage(await response.arrayBuffer(), contentType) }
+}
 
-    const pageUrl = response.url || url
-    const doc = new DOMParser().parseFromString(decodePage(await response.arrayBuffer(), contentType), 'text/html')
-    // Relative links and images resolve against the page's own address (or its own <base>), not Ben's.
-    const base = doc.querySelector('base[href]') ?? doc.head.appendChild(doc.createElement('base'))
-    base.setAttribute('href', new URL(base.getAttribute('href') ?? '', pageUrl).href)
-
-    const parsed = new Readability(doc).parse()
-    if (!parsed?.content) {
-        throw new Error("Couldn't find an article on this page.")
+/** Downloads a page and extracts its article. Rejects with a message fit to show the user. */
+export async function fetchArticle(url: string): Promise<Article> {
+    if (!IS_DESKTOP_APP) {
+        throw new Error('The Reader works in the Ben app, not in a browser tab.')
     }
-
-    return {
-        url: pageUrl,
-        title: parsed.title?.trim() || new URL(pageUrl).hostname,
-        byline: parsed.byline?.trim() || null,
-        siteName: parsed.siteName?.trim() || null,
-        html: DOMPurify.sanitize(parsed.content, {
-            FORBID_TAGS: ['style', 'form', 'input', 'button', 'select', 'textarea', 'iframe'],
-            FORBID_ATTR: ['style'],
-        }),
+    let page = await fetchPage(url)
+    for (let hops = 0; hops < MAX_PAGE_REDIRECTS; hops++) {
+        const next = pageRedirect(page.html, page.url)
+        if (!next) {
+            break
+        }
+        page = await fetchPage(next)
     }
+    return extractArticle(page.html, page.url)
 }

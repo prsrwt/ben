@@ -93,12 +93,18 @@ export function ReaderView(): JSX.Element {
     return (
         <article ref={articleRef} className="reader-article" onClick={onLinkClick} onAuxClick={onLinkClick}>
             <header className="reader-article__header">
-                <p className="reader-article__site">{article.siteName ?? hostOf(article.url)}</p>
+                <p className="reader-article__site">{hostOf(article.url)}</p>
                 <h1>{article.title}</h1>
                 {article.byline && <p className="reader-article__byline">{article.byline}</p>}
             </header>
-            {/* Sanitised in fetchArticle (DOMPurify): no scripts, forms, embeds or inline styles. */}
+            {/* Sanitised in extractArticle (DOMPurify): no scripts, forms, embeds or inline styles. */}
             <div className="reader-article__body" dangerouslySetInnerHTML={{ __html: article.html }} />
+            {article.details && (
+                <details className="reader-article__details">
+                    <summary>Details</summary>
+                    <div className="reader-article__body" dangerouslySetInnerHTML={{ __html: article.details }} />
+                </details>
+            )}
         </article>
     )
 }

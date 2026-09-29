@@ -42,9 +42,11 @@ function SearchBar(): JSX.Element {
             onSubmit={(e) => {
                 e.preventDefault()
                 const url = toArticleUrl(inputRef.current?.value ?? '')
-                if (url) {
+                if (url && inputRef.current) {
                     openLink(url)
-                    inputRef.current?.blur()
+                    // The link now lives in its window; a leftover address wouldn't say which one.
+                    inputRef.current.value = ''
+                    inputRef.current.blur()
                 }
             }}
         >

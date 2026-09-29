@@ -144,6 +144,17 @@
         background: var(--ben-hover);
     }
 
+    /* Citation markers ([12], [a]): small and grey, so they don't compete with real links. */
+    & sup {
+        font-size: 0.7em;
+        line-height: 0;
+    }
+
+    & sup > a {
+        color: var(--ben-text-3);
+        text-decoration: none;
+    }
+
     /* Wide tables scroll sideways rather than widening the column. */
     & table {
         display: block;
@@ -151,19 +162,52 @@
         overflow-x: auto;
         border-collapse: collapse;
         font-size: 0.9em;
+        line-height: 1.45;
     }
 
     & th,
     & td {
-        padding: 0.4em 0.6em;
+        padding: 0.3em 0.5em;
         border: 1px solid var(--ben-border);
         text-align: left;
         vertical-align: top;
+    }
+
+    /* Wikipedia wraps single values in lists and paragraphs inside cells: show them as plain lines. */
+    & :is(th, td) :is(ul, ol) {
+        margin: 0;
+        padding-left: 0;
+        list-style: none;
+    }
+
+    & :is(th, td) :is(p, li) {
+        margin: 0;
     }
 
     & hr {
         margin: 2em 0;
         border: 0;
         border-top: 1px solid var(--ben-border);
+    }
+}
+
+/* The summary table taken out of the article (Wikipedia's infobox), collapsed at the end. */
+.reader-article__details {
+    margin-top: 2.5em;
+    padding-top: 1em;
+    border-top: 1px solid var(--ben-border);
+
+    & > summary {
+        cursor: pointer;
+        font-weight: 600;
+        color: var(--ben-text-2);
+
+        &:hover {
+            color: var(--ben-text);
+        }
+    }
+
+    &[open] > summary {
+        margin-bottom: 1em;
     }
 }
