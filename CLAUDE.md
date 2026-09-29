@@ -5,7 +5,7 @@ styled as a small desktop with matte-glass windows. It is not a general web brow
 remove clutter and distraction from studying online. Planned apps, each still an empty window:
 
 - **Reader:** paste a link, get a clean article rendered as a book (pagination, clickable index). Being built:
-  clean article, clean-up, back/forward and pages are done; keeping your place (6b) and the index are next.
+  clean article, clean-up, back/forward, pages and keeping your place are done; the clickable index is next.
 - **History:** every page read in the Reader (link, title, time; not the article), grouped by day, kept
   across restarts in localStorage `ben.history` (last 1,000). Built.
 - **Library:** saved articles and notes in folders, stored as plain files the user owns.
@@ -61,7 +61,9 @@ Build one app at a time, only when the user asks. Everything else stays empty.
   56px margins), otherwise one page (at most 680px wide). → / Space / PageDown forward, ← / Shift+Space /
   PageUp back (front Reader window only; not while focus is in a field, button or menu), and clicking the side
   margins. Page numbers under each page. Headings carry an invisible 4em tail so they never end a page.
-  A turn is a short sideways slide (220 ms). A 3D "door" flip and an Apple Books-style paper fold were tried
+  The reading place is kept as a passage (index of the first block starting on the page), not a page
+  number, so resizing, one page <-> two, and back/forward (kept per page id in `ReaderView.tsx`) all return
+  to the same passage. A turn is a short sideways slide (220 ms). A 3D "door" flip and an Apple Books-style paper fold were tried
   and dropped on 2026-09-30: an opaque turning sheet looks like a solid slab on the frosted-glass pages.
   Article text is Literata (`@fontsource-variable/literata`, ~52 KB upright + ~54 KB italic for Latin).
 - **Scrollbar:** the native one is hidden; `WindowScrollbar.tsx` draws a grey pill clear of the rounded

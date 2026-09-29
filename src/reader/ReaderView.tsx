@@ -8,7 +8,7 @@ import '@fontsource-variable/literata'
 import '@fontsource-variable/literata/wght-italic.css'
 
 import { useActions, useValues } from 'kea'
-import { ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { ReactNode, useCallback, useEffect, useRef, useState } from 'react'
 
 import { cn } from '~/desktop/cn'
 import { WindowId, windowsLogic } from '~/desktop/windowsLogic'
@@ -20,8 +20,9 @@ import { BOTTOM_MARGIN, PAGE_GAP, TOP_MARGIN, useBook } from './useBook'
 
 const hostOf = (url: string): string => new URL(url).hostname.replace(/^www\./, '')
 
-/** Where each page was scrolled to, by page id, so back and forward return to the same spot. */
-const scrollPositions = new Map<number, number>()
+/** Where each article was being read (a block index, see useBook), by page id, so back and forward
+ *  return to the same passage. */
+const readingPlaces = new Map<number, number>()
 
 /** Centred message for the states without an article. */
 function Notice({ title, children }: { title: string; children?: ReactNode }): JSX.Element {
@@ -34,28 +35,8 @@ function Notice({ title, children }: { title: string; children?: ReactNode }): J
 }
 
 export function ReaderView({ windowId }: { windowId: WindowId }): JSX.Element {
-    const { current } = readerWindowState(useValues(readerLogic).histories, windowId)
-    const rootRef = useRef<HTMLDivElement>(null)
-    const pageId = current?.status === 'ready' ? current.id : null
-
-    // When a page shows, put it back where it was scrolled to (a new page starts at the top), then keep
-    // track of where it's scrolled. One effect, so the previous page stops recording before this one moves.
-    useLayoutEffect(() => {
-        const scroller = rootRef.current?.closest('.desktop-window__body')
-        if (!scroller) {
-            return
-        }
-        scroller.scrollTo(0, pageId === null ? 0 : (scrollPositions.get(pageId) ?? 0))
-        if (pageId === null) {
-            return
-        }
-        const onScroll = (): void => void scrollPositions.set(pageId, scroller.scrollTop)
-        scroller.addEventListener('scroll', onScroll, { passive: true })
-        return () => scroller.removeEventListener('scroll', onScroll)
-    }, [pageId])
-
     return (
-        <div ref={rootRef} className="h-full">
+        <div className="h-full">
             <ReaderPageView windowId={windowId} />
         </div>
     )
@@ -95,7 +76,7 @@ function ReaderPageView({ windowId }: { windowId: WindowId }): JSX.Element {
         )
     }
     // Keyed by page, so each article opens on its first page.
-    return <ArticleBook key={current.id} article={current.article} windowId={windowId} />
+    return <ArticleBook key={current.id} pageId={current.id} article={current.article} windowId={windowId} />
 }
 
 /** Keys that turn pages, unless focus is somewhere they mean something else (a text field, an open menu,
@@ -117,12 +98,15 @@ function turnDirection(event: KeyboardEvent): 1 | -1 | null {
     return null
 }
 
-function ArticleBook({ article, windowId }: { article: Article; windowId: WindowId }): JSX.Element {
+function ArticleBook({ pageId, article, windowId }: { pageId: number; article: Article; windowId: WindowId }): JSX.Element {
     const { focusedId } = useValues(windowsLogic)
     const { openLink, openLinkBeside, openLinkInNewWindow } = useActions(readerLogic)
     const bookRef = useRef<HTMLDivElement>(null)
     const articleRef = useRef<HTMLElement>(null)
-    const { layout, page, pageCount, turning, turn, showElement } = useBook(bookRef, articleRef)
+    const { layout, page, pageCount, turning, turn, showElement } = useBook(bookRef, articleRef, {
+        initial: readingPlaces.get(pageId) ?? null,
+        onChange: (place) => readingPlaces.set(pageId, place),
+    })
     // The middle-click menu: where it was opened, and for which link.
     const [linkMenu, setLinkMenu] = useState<{ x: number; y: number; url: string } | null>(null)
     const closeLinkMenu = useCallback(() => setLinkMenu(null), [])
