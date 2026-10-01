@@ -44,9 +44,15 @@ export function NewspaperView({ windowId }: { windowId: WindowId }): JSX.Element
         )
     }
     if (open.status === 'loading') {
+        const { progress } = open
         return (
-            <Notice title="Opening…">
+            <Notice title={progress ? `Reading page ${Math.min(progress.done + 1, progress.total)} of ${progress.total}…` : 'Opening…'}>
                 <p className="text-tertiary text-sm m-0">{open.file.title}</p>
+                {progress && (
+                    <p className="text-tertiary text-xs m-0 mt-2 max-w-sm">
+                        This paper is a scan, so Ben reads it by looking at each page. It takes a little while.
+                    </p>
+                )}
             </Notice>
         )
     }

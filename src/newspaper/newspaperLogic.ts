@@ -17,6 +17,8 @@ export interface OpenPaper {
     paper: Paper | null
     /** How many pages the PDF has. */
     pages: number
+    /** A scanned paper being read page by page. */
+    progress: { done: number; total: number } | null
     error: string | null
 }
 
@@ -30,6 +32,7 @@ export interface newspaperLogicActions {
     openPaper: (file: PaperFile) => { file: PaperFile }
     paperLoaded: (path: string, paper: Paper, pages: number) => { path: string; paper: Paper; pages: number }
     paperFailed: (path: string, error: string) => { path: string; error: string }
+    paperProgress: (path: string, done: number, total: number) => { path: string; done: number; total: number }
     showSection: (section: number) => { section: number }
     /** Opens a story (by its number in the paper) in the Reader. */
     readStory: (story: number) => { story: number }
@@ -50,6 +53,7 @@ export const newspaperLogic = kea<newspaperLogicType>([
         openPaper: (file: PaperFile) => ({ file }),
         paperLoaded: (path: string, paper: Paper, pages: number) => ({ path, paper, pages }),
         paperFailed: (path: string, error: string) => ({ path, error }),
+        paperProgress: (path: string, done: number, total: number) => ({ path, done, total }),
         showSection: (section: number) => ({ section }),
         readStory: (story: number) => ({ story }),
     }),
@@ -57,7 +61,9 @@ export const newspaperLogic = kea<newspaperLogicType>([
         open: [
             null as OpenPaper | null,
             {
-                openPaper: (_, { file }) => ({ file, status: 'loading', paper: null, pages: 0, error: null }),
+                openPaper: (_, { file }) => ({ file, status: 'loading', paper: null, pages: 0, progress: null, error: null }),
+                paperProgress: (state, { path, done, total }) =>
+                    state?.file.path === path && state.status === 'loading' ? { ...state, progress: { done, total } } : state,
                 // A paper that finishes after another was opened finds no match and changes nothing.
                 paperLoaded: (state, { path, paper, pages }) =>
                     state?.file.path === path ? { ...state, status: 'ready', paper, pages } : state,
@@ -71,7 +77,7 @@ export const newspaperLogic = kea<newspaperLogicType>([
             actions.openApp('newspaper')
             try {
                 const { loadPaper } = await import('./openPaper')
-                const { paper, pages } = await loadPaper(file.path)
+                const { paper, pages } = await loadPaper(file.path, (done, total) => actions.paperProgress(file.path, done, total))
                 actions.paperLoaded(file.path, paper, pages)
             } catch (e) {
                 actions.paperFailed(file.path, e instanceof Error ? e.message : String(e))

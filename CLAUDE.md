@@ -11,9 +11,9 @@ remove clutter and distraction from studying online. Planned apps, each still an
 - **Library:** the student's own study files (PDF, Word, PowerPoint, photos) from folders they choose, recognised
   and put on shelves by subject and kind. Read-only: files are never moved or changed. Phase I1 built. Newspapers
   sit on their shelf newest first, with their dates, and open in the Newspaper window. Next I2 (syllabus units + coverage), then exam layouts, Windows OCR for
-  photos and scanned papers, and "explain visually".
-- **Newspaper:** an old-times broadsheet. Built for e-paper PDFs from the Library (with real text; scans wait for
-  OCR); RSS sources are still to come, in the same broadsheet.
+  photos, and "explain visually".
+- **Newspaper:** an old-times broadsheet. Built for e-paper PDFs from the Library, scanned or scrambled ones read
+  with Windows OCR ("Reading page 3 of 20…"); RSS sources are still to come, in the same broadsheet.
 - **Videos:** YouTube captions turned into readable, chaptered transcripts.
 - **Notes**, **Trash**.
 
@@ -111,7 +111,7 @@ Build one app at a time, only when the user asks. Everything else stays empty.
 | `src/desktop/windowContent.tsx` | What each window shows. Reader, History, Library and Newspaper have their views; the rest are `EmptyWindow` |
 | `src/library/` | Library: `classify.ts` (recognises kind/subject/mine/course code from name, folder, pages, first-page text; pure, testable), `libraryLogic.ts` (folders, identity, index in app data `library.json`, scan reads only new/changed files, corrections, grouping of copies/formats), `libraryApi.ts`, `LibraryView.tsx` (first-run setup, subject sidebar, shelves, "Needs you", PDF/photo viewer) |
 | `src-tauri/src/library.rs` | Library file work: suggest folders, list (skips hidden/system/code-project folders), read text (lopdf, docx/pptx XML via zip), watch (notify → `library-changed`), save index, open in program (only inside chosen folders), asset-protocol scope for viewing |
-| `src/newspaper/` | Newspaper PDFs: `layout.ts` (positioned words → sections, stories, teasers and briefs, continuations; drops icon glyphs and hidden ID codes; "PAGE n" pointers with or without "»"; spots scanned/scrambled papers; pure, testable), `pdfText.ts` (words via PDF.js), `paperFile.ts` (a paper's address: its `file:///` URL + `?title=&paper=&date=`, `&story=n` for one story in the Reader), `openPaper.ts` (loaded only when a paper opens, so PDF.js, its worker and the layout code stay out of the main bundle; keeps the last 3 papers read), `stories.ts` (story numbering, pointer targets, excerpts, one story as a Reader article; types only from `layout.ts`), `newspaperLogic.ts` (the paper open in the Newspaper window, its section, opening stories in the Reader), `NewspaperView.tsx` + `newspaper.css` (the broadsheet), `ocrPage.ts` (OCR words → the layout's positioned words). Papers aren't recorded in History |
+| `src/newspaper/` | Newspaper PDFs: `layout.ts` (positioned words → sections, stories, teasers and briefs, continuations; drops icon glyphs and hidden ID codes; "PAGE n" pointers with or without "»"; spots scanned/scrambled papers; pure, testable), `pdfText.ts` (words via PDF.js), `paperFile.ts` (a paper's address: its `file:///` URL + `?title=&paper=&date=`, `&story=n` for one story in the Reader), `openPaper.ts` (loaded only when a paper opens, so PDF.js, its worker and the layout code stay out of the main bundle; keeps the last 3 papers read), `stories.ts` (story numbering, pointer targets, excerpts, one story as a Reader article; types only from `layout.ts`), `newspaperLogic.ts` (the paper open in the Newspaper window, its section, opening stories in the Reader), `NewspaperView.tsx` + `newspaper.css` (the broadsheet), `scanText.ts` (a scanned or scrambled paper: each page drawn by PDF.js ~2,400 px wide as JPEG, read by Windows OCR, with progress), `ocrPage.ts` (OCR words → the layout's positioned words: each word's type size worked out from its letters, since a box is only as tall as its letters; a line takes its words' middle size and baseline). PDF.js is its **legacy** build: the modern one needs `Map.getOrInsertComputed` to draw pages, which WebView2 may lack. Papers aren't recorded in History |
 | `src/ocr/ocrApi.ts`, `src-tauri/src/ocr.rs` | Text recognition with Windows' built-in OCR (`Windows.Media.Ocr` via the `windows` crate Tauri already uses; offline, no download): `ocr_image` (raw image bytes) and `ocr_file` (a picture inside a Library folder) give words with pixel boxes. Elsewhere than Windows it answers with an error. Needs an OCR language installed in Windows (English usually is) |
 | `src/history/` | History: `historyLogic.ts` (records Reader page loads, persists), `HistoryView.tsx` |
 | `src/reader/` | The Reader: `fetchArticle.ts` (download via Tauri's HTTP plugin), `extractArticle.ts` (Readability + DOMPurify + clean-up, no app dependencies), `readerLogic.ts` (history: pages + index), `ReaderView.tsx`, `ReaderIslandOptions.tsx` (back/forward on the island), `useBook.ts` (page layout and turning), `reader.css` |
@@ -154,7 +154,7 @@ changes check behaviour in the real app, not only in a browser tab.
   Baseline on 2026-09-29: about 286 MB private, 0% idle CPU. Roughly 100 MB of that is WebView2's fixed cost;
   the glass blur costs about 30 MB.
 - Bundle: 349 KB of JS on 2026-10-01 (213 KB before Search, menus and the Library), mostly the Tauri API, React,
-  Readability, DOMPurify and Kea. PDF.js (~440 KB + a 1.3 MB worker) is a separate file loaded only when a paper opens. To see what a change costs, build with `--sourcemap` and sum bytes per
+  Readability, DOMPurify and Kea. PDF.js (legacy build, ~500 KB + a 1.3 MB worker) is a separate file loaded only when a paper opens. To see what a change costs, build with `--sourcemap` and sum bytes per
   source package.
 
 ## Windows pitfalls already hit
@@ -168,6 +168,9 @@ changes check behaviour in the real app, not only in a browser tab.
   If `npm run app` says the port is busy, an old dev server is still running.
 - **A folder that won't delete or rename** is usually held open by a process standing in it (a terminal,
   Explorer window, or a leftover dev server), not a permissions problem.
+- **"Version mismatched Tauri packages"** on `npm run app`: an npm `@tauri-apps/*` package and its Rust crate
+  differ in major/minor (e.g. `tauri-plugin-http` 2.8 vs `@tauri-apps/plugin-http` 2.7). Bump the lower one so
+  both match. After pulling changes that add npm packages, run `npm install` first ("Failed to resolve import").
 - **Taskbar icon not updating** after changing `src-tauri/icons`: Rust doesn't rebuild for icon changes;
   touch `src-tauri/build.rs` and `src-tauri/src/lib.rs`.
 - **backdrop-filter** only sees the real wallpaper if no ancestor has `filter`, `opacity` < 1 or `mask`.
