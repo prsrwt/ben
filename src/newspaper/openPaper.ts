@@ -9,7 +9,7 @@ import { convertFileSrc } from '@tauri-apps/api/core'
 // (drawing a page uses Map.getOrInsertComputed, which the modern build expects the browser to have). Its worker
 // is built by Vite (?worker), so it takes Ben's word-space setting (vite.config.ts).
 import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs'
-import PdfWorker from 'pdfjs-dist/legacy/build/pdf.worker.mjs?worker'
+import workerUrl from 'pdfjs-dist/legacy/build/pdf.worker.mjs?worker&url'
 
 import type { Article } from '~/reader/extractArticle'
 
@@ -20,7 +20,8 @@ import { readPdfText } from './pdfText'
 import { readScannedPages } from './scanText'
 import { storyArticle } from './stories'
 
-pdfjs.GlobalWorkerOptions.workerPort = new PdfWorker()
+// A worker per document (a shared one is shut down when any document closes).
+pdfjs.GlobalWorkerOptions.workerSrc = workerUrl
 
 /** Papers read, by path; the oldest is forgotten beyond this many. */
 const KEPT = 3
