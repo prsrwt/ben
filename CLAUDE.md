@@ -8,7 +8,9 @@ remove clutter and distraction from studying online. Planned apps, each still an
   clean article, clean-up, back/forward, pages, keeping your place and Contents are done.
 - **History:** every page read in the Reader (link, title, time; not the article), grouped by day, kept
   across restarts in localStorage `ben.history` (last 1,000). Built.
-- **Library:** saved articles and notes in folders, stored as plain files the user owns.
+- **Library:** the student's own study files (PDF, Word, PowerPoint, photos) from folders they choose, recognised
+  and put on shelves by subject and kind. Read-only: files are never moved or changed. Phase I1 built; next I2
+  (syllabus units + coverage), then newspapers/exam layouts, Windows OCR for photos, and "explain visually".
 - **Newspaper:** RSS sources laid out as an old-times broadsheet.
 - **Videos:** YouTube captions turned into readable, chaptered transcripts.
 - **Notes**, **Trash**.
@@ -95,6 +97,8 @@ Build one app at a time, only when the user asks. Everything else stays empty.
 | `src/desktop/desktop.css` | Wallpaper, glass, traffic lights, scrollbar, search bar, icon layers (plain CSS, native nesting) |
 | `src/desktop/apps.tsx` | The app registry (id, title, column). Add an app here |
 | `src/desktop/windowContent.tsx` | What each window shows. The Reader has its view; the rest are `EmptyWindow` |
+| `src/library/` | Library: `classify.ts` (recognises kind/subject/mine/course code from name, folder, pages, first-page text; pure, testable), `libraryLogic.ts` (folders, identity, index in app data `library.json`, scan reads only new/changed files, corrections, grouping of copies/formats), `libraryApi.ts`, `LibraryView.tsx` (first-run setup, subject sidebar, shelves, "Needs you", PDF/photo viewer) |
+| `src-tauri/src/library.rs` | Library file work: suggest folders, list (skips hidden/system/code-project folders), read text (lopdf, docx/pptx XML via zip), watch (notify → `library-changed`), save index, open in program (only inside chosen folders), asset-protocol scope for viewing |
 | `src/history/` | History: `historyLogic.ts` (records Reader page loads, persists), `HistoryView.tsx` |
 | `src/reader/` | The Reader: `fetchArticle.ts` (download via Tauri's HTTP plugin), `extractArticle.ts` (Readability + DOMPurify + clean-up, no app dependencies), `readerLogic.ts` (history: pages + index), `ReaderView.tsx`, `ReaderIslandOptions.tsx` (back/forward on the island), `useBook.ts` (page layout and turning), `reader.css` |
 | `src/desktop/windowsLogic.ts` | Kea logic: open windows, order, position, maximise, minimise |

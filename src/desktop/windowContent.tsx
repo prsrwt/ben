@@ -2,6 +2,7 @@
 // out, give it its own component and map its id to it here.
 
 import { HistoryView } from '~/history/HistoryView'
+import { LibraryView } from '~/library/LibraryView'
 import { ReaderView } from '~/reader/ReaderView'
 
 import { APPS, AppId } from './apps'
@@ -22,6 +23,8 @@ export function WindowContent({ window }: { window: WindowState }): JSX.Element 
             return <ReaderView windowId={window.id} />
         case 'history':
             return <HistoryView />
+        case 'library':
+            return <LibraryView />
         default:
             return <EmptyWindow id={window.appId} />
     }

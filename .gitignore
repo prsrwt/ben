@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Sample newspapers and study files for testing: copyrighted and large, never committed.
+/*.pdf
+/samples/

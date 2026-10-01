@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Default permissions, the window actions the menu bar needs (the window has no Windows title bar), and web downloads for the Reader (http/https links only).",
+  "description": "Default permissions, the window actions the menu bar needs (the window has no Windows title bar), and web downloads for the Reader (http/https links only). Plus the Library's folder picker.",
   "windows": [
     "main"
   ],
@@ -21,6 +21,7 @@
           "url": "http://*/*"
         }
       ]
-    }
+    },
+    "dialog:allow-open"
   ]
 }
