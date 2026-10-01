@@ -5,6 +5,8 @@ import './desktop.css'
 import { useValues } from 'kea'
 import { useEffect, useState } from 'react'
 
+import { EyeBreak } from '~/newspaper/EyeBreak'
+
 import { APP_LIST } from './apps'
 import { DESKTOP_ASSETS, useImageAvailable } from './assets'
 import { cn } from './cn'
@@ -110,6 +112,9 @@ export function Desktop(): JSX.Element {
 
             {/* Ctrl+Space: every open window as cards, over everything else. */}
             <BenView />
+
+            {/* The 20-20-20 reminder to rest the eyes, when turned on in the Newspaper's "Aa" menu. */}
+            <EyeBreak />
         </div>
     )
 }

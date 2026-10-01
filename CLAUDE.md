@@ -97,14 +97,24 @@ Build one app at a time, only when the user asks. Everything else stays empty.
   (`NewspaperIslandOptions.tsx`, registered through `openBooks.ts` like a Reader book): sections, and their stories
   with printed pages; a story is turned to, scrolled to and glows briefly. Clicking anywhere on a story opens it on its own
   sheet in the same window and the same newspaper style (`StorySheet`, asked for 2026-10-01 for reading all day): a
-  small masthead and the date between rules, "← Section" back, kicker, headline, summary (deck) in italics, byline
-  and dateline in small capitals, then the story in Literata 19px / 1.7 in one ragged-right column about 64
-  characters wide, its "continued on page n" part joined on; Before / Next at the foot, ← → between stories, Esc
-  back to the page where you were; "Open in Reader" still there. Under the pointer a story takes a faint tint (what a
-  click opens). A hover lift (scale 1.06) was tried and dropped on 2026-10-01: it didn't make the words readable. Excerpts only: a headline, "Read on" or "Page n →" opens
+  small masthead and the date between rules stay at the top ("← Section" back, page, reading time); below, the story
+  is a book, paged like the Reader (`useBook` and reader.css's page rules): kicker, headline, summary (deck) in
+  italics, byline and dateline in small capitals, then Literata 19px / 1.7 ragged right, its "continued on page n"
+  part joined on. ← → / Space / PageUp/Down or the margins turn pages; past the last page the next story, and on
+  into the next section ("Next, in Sport →" on the last page); before the first page, the story before. Esc
+  returns to the page where you were, or to the story's own section page if reading carried on into another
+  section; the island pill follows the story's section. "Open in Reader" is still there. Under the pointer a story
+  takes a faint tint (what a click opens). A hover lift (scale 1.06) was tried and dropped on 2026-10-01: it didn't make the words readable. Excerpts only: a headline, "Read on" or "Page n →" opens
   the story in the Reader (the Reader window already showing a paper's story, else a new one), with its "continued
   on page n" part joined on. Narrow windows fold to one column (container query). The two fonts (~100 KB) download
   only when a paper shows.
+- **Reading comfort** (`comfortLogic.ts`, `ComfortMenu.tsx`, asked for 2026-10-01): an "Aa" button beside
+  Contents on the island for the Newspaper window. Text size A− / A+ in 10% steps (80%–150%; click the % to reset)
+  for the broadsheet (column text 15px standard, ragged right) and the story pages; paper tone Follow theme (the
+  default: cream / dark newsprint) / Cream / White / Soft dark; "Remind me to rest my eyes" (off by default):
+  every 20 minutes of reading (Newspaper or Reader window in front, Ben on screen) a glass card at the foot of the
+  desktop counts down 20 seconds to look ~6 m away (`EyeBreak.tsx`, Skip). Stored in localStorage `ben.newspaper`.
+  Every story shows its reading time (~230 words a minute, continuation included).
 - **Theme:** light / dark / "Sync with system", stored in localStorage `ben.theme` (migrated once from the
   old key `scenes.userLogic.user`). `ThemeSync.tsx` sets `<body theme="dark|light">`.
 
@@ -119,7 +129,7 @@ Build one app at a time, only when the user asks. Everything else stays empty.
 | `src/desktop/windowContent.tsx` | What each window shows. Reader, History, Library and Newspaper have their views; the rest are `EmptyWindow` |
 | `src/library/` | Library: `classify.ts` (recognises kind/subject/mine/course code from name, folder, pages, first-page text; pure, testable), `libraryLogic.ts` (folders, identity, index in app data `library.json`, scan reads only new/changed files, corrections, grouping of copies/formats), `libraryApi.ts`, `LibraryView.tsx` (first-run setup, subject sidebar, shelves, "Needs you", PDF/photo viewer) |
 | `src-tauri/src/library.rs` | Library file work: suggest folders, list (skips hidden/system/code-project folders), read text (lopdf, docx/pptx XML via zip), watch (notify → `library-changed`), save index, open in program (only inside chosen folders), asset-protocol scope for viewing |
-| `src/newspaper/` | Newspaper PDFs: `layout.ts` (positioned words → sections, stories with summary/byline/dateline split out (`splitHead`), teasers and briefs, continuations; column gutters found around each line, not page-high, since pages are modular; a column beside one already placed at the same height is that story's next column; drops icon glyphs, hidden ID codes and the stray marker letter some papers print before a story ("X In-form…"); "PAGE n" pointers with or without "»"; spots scanned/scrambled papers; pure, testable), `pdfText.ts` (words via PDF.js), `paperFile.ts` (a paper's address: its `file:///` URL + `?title=&paper=&date=`, `&story=n` for one story in the Reader), `openPaper.ts` (loaded only when a paper opens, so PDF.js, its worker and the layout code stay out of the main bundle; keeps the last 3 papers read), `stories.ts` (story numbering, pointer targets, excerpts, one story as a Reader article; types only from `layout.ts`), `newspaperLogic.ts` (the paper open in the Newspaper window, its section, opening stories in the Reader), `NewspaperView.tsx` + `newspaper.css` (the broadsheet), `scanText.ts` (a scanned or scrambled paper: each page drawn by PDF.js ~2,400 px wide as JPEG, read by Windows OCR, with progress), `ocrPage.ts` (OCR words → the layout's positioned words: each word's type size worked out from its letters, since a box is only as tall as its letters; a line takes its words' middle size and baseline). PDF.js is its **legacy** build: the modern one needs `Map.getOrInsertComputed` to draw pages, which WebView2 may lack. Papers aren't recorded in History |
+| `src/newspaper/` | Newspaper PDFs: `layout.ts` (positioned words → sections, stories with summary/byline/dateline split out (`splitHead`), teasers and briefs, continuations; column gutters found around each line, not page-high, since pages are modular; a column beside one already placed at the same height is that story's next column; drops icon glyphs, hidden ID codes and the stray marker letter some papers print before a story ("X In-form…"); "PAGE n" pointers with or without "»"; spots scanned/scrambled papers; pure, testable), `pdfText.ts` (words via PDF.js), `paperFile.ts` (a paper's address: its `file:///` URL + `?title=&paper=&date=`, `&story=n` for one story in the Reader), `openPaper.ts` (loaded only when a paper opens, so PDF.js, its worker and the layout code stay out of the main bundle; keeps the last 3 papers read), `stories.ts` (story numbering, pointer targets, excerpts, one story as a Reader article; types only from `layout.ts`), `newspaperLogic.ts` (the paper open in the Newspaper window, its section, the story open on its sheet, opening stories in the Reader), `NewspaperView.tsx` + `newspaper.css` (the broadsheet and the paged story sheet), `NewspaperIslandOptions.tsx` (Contents + "Aa" on the island), `comfortLogic.ts` + `ComfortMenu.tsx` (text size, paper tone, break reminder; `ben.newspaper`), `EyeBreak.tsx` (the 20-20-20 card, mounted in `Desktop.tsx`), `scanText.ts` (a scanned or scrambled paper: each page drawn by PDF.js ~2,400 px wide as JPEG, read by Windows OCR, with progress), `ocrPage.ts` (OCR words → the layout's positioned words: each word's type size worked out from its letters, since a box is only as tall as its letters; a line takes its words' middle size and baseline). PDF.js is its **legacy** build: the modern one needs `Map.getOrInsertComputed` to draw pages, which WebView2 may lack. Papers aren't recorded in History |
 | `src/ocr/ocrApi.ts`, `src-tauri/src/ocr.rs` | Text recognition with Windows' built-in OCR (`Windows.Media.Ocr` via the `windows` crate Tauri already uses; offline, no download): `ocr_image` (raw image bytes) and `ocr_file` (a picture inside a Library folder) give words with pixel boxes. Elsewhere than Windows it answers with an error. Needs an OCR language installed in Windows (English usually is) |
 | `src/history/` | History: `historyLogic.ts` (records Reader page loads, persists), `HistoryView.tsx` |
 | `src/reader/` | The Reader: `fetchArticle.ts` (download via Tauri's HTTP plugin), `extractArticle.ts` (Readability + DOMPurify + clean-up, no app dependencies), `readerLogic.ts` (history: pages + index), `ReaderView.tsx`, `ReaderIslandOptions.tsx` (back/forward on the island), `useBook.ts` (page layout and turning), `reader.css` |
@@ -161,7 +171,7 @@ changes check behaviour in the real app, not only in a browser tab.
   WebView2 process it started (private bytes). Dev mode is not a fair ruler, and live reloads inflate it.
   Baseline on 2026-09-29: about 286 MB private, 0% idle CPU. Roughly 100 MB of that is WebView2's fixed cost;
   the glass blur costs about 30 MB.
-- Bundle: 353 KB of JS on 2026-10-01 (213 KB before Search, menus and the Library), mostly the Tauri API, React,
+- Bundle: 362 KB of JS on 2026-10-01 (213 KB before Search, menus and the Library), mostly the Tauri API, React,
   Readability, DOMPurify and Kea. PDF.js (legacy build, ~500 KB + a 1.3 MB worker) is a separate file loaded only when a paper opens. To see what a change costs, build with `--sourcemap` and sum bytes per
   source package.
 
