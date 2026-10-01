@@ -7,6 +7,7 @@
 import { useValues } from 'kea'
 
 import { APP_NAME } from '~/appConfig'
+import { NewspaperIslandOptions } from '~/newspaper/NewspaperIslandOptions'
 import { ReaderIslandOptions } from '~/reader/ReaderIslandOptions'
 
 import { IS_DESKTOP_APP, appWindow } from './nativeWindow'
@@ -48,6 +49,7 @@ export function BenIsland(): JSX.Element {
             {/* Options for the app in front, just right of the search bar (whose half-width is min(170px, 15%)). */}
             <div className="island-beside island-beside--right absolute left-[calc(50%+min(170px,15%)+8px)]">
                 {focusedWindow?.appId === 'reader' && <ReaderIslandOptions windowId={focusedWindow.id} />}
+                {focusedWindow?.appId === 'newspaper' && <NewspaperIslandOptions windowId={focusedWindow.id} />}
             </div>
 
             <div className="ml-auto flex items-center gap-3">

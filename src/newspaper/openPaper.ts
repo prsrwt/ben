@@ -1,16 +1,20 @@
 // Reads a newspaper PDF from the Library into sections and stories (layout.ts). Imported only when a paper is
-// opened, so PDF.js (and its worker, a separate file) cost nothing until then. The last few papers read are kept,
-// so opening one of their stories in the Reader doesn't read the PDF again.
+// opened, so PDF.js (and its worker, a separate file) cost nothing until then. A scanned paper (or one whose fonts
+// give scrambled letters) is read page by page with Windows' text recognition (scanText.ts). The last few papers
+// read are kept, so opening one of their stories in the Reader doesn't read the PDF again.
 
 import { convertFileSrc } from '@tauri-apps/api/core'
-import * as pdfjs from 'pdfjs-dist'
-import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
+// PDF.js's "legacy" build: the same code with fallbacks for features newer than some WebView2 versions have
+// (drawing a page uses Map.getOrInsertComputed, which the modern build expects the browser to have).
+import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs'
+import workerUrl from 'pdfjs-dist/legacy/build/pdf.worker.min.mjs?url'
 
 import type { Article } from '~/reader/extractArticle'
 
 import { Paper, isReadable, readPaper } from './layout'
 import { paperFile } from './paperFile'
 import { readPdfText } from './pdfText'
+import { readScannedPages } from './scanText'
 import { storyArticle } from './stories'
 
 pdfjs.GlobalWorkerOptions.workerSrc = workerUrl
@@ -19,7 +23,9 @@ pdfjs.GlobalWorkerOptions.workerSrc = workerUrl
 const KEPT = 3
 const papers = new Map<string, Promise<{ paper: Paper; pages: number }>>()
 
-async function read(path: string): Promise<{ paper: Paper; pages: number }> {
+export type Progress = (done: number, total: number) => void
+
+async function read(path: string, onProgress?: Progress): Promise<{ paper: Paper; pages: number }> {
     let bytes: Uint8Array
     try {
         // Through the asset protocol, which the Library allows for the folders the student chose.
@@ -31,11 +37,13 @@ async function read(path: string): Promise<{ paper: Paper; pages: number }> {
     } catch {
         throw new Error("Couldn't open this file. It may have been moved, or its folder is no longer in the Library.")
     }
-    const pages = await readPdfText(pdfjs, bytes)
+    // PDF.js takes over the bytes it's given, so the first reading gets a copy.
+    let pages = await readPdfText(pdfjs, bytes.slice())
     if (!isReadable(pages)) {
-        throw new Error(
-            "This paper is a scan (or its letters are scrambled), so Ben can't read its text yet. Open it from the Library to see the PDF."
-        )
+        pages = await readScannedPages(pdfjs, bytes, onProgress)
+        if (!isReadable(pages)) {
+            throw new Error("Ben couldn't make out the words on this paper's pages. Open it from the Library to see the PDF.")
+        }
     }
     const paper = readPaper(pages)
     if (paper.sections.length === 0) {
@@ -44,11 +52,12 @@ async function read(path: string): Promise<{ paper: Paper; pages: number }> {
     return { paper, pages: pages.length }
 }
 
-/** A paper's sections and stories, and how many pages it has. Rejects with a message fit to show the student. */
-export function loadPaper(path: string): Promise<{ paper: Paper; pages: number }> {
+/** A paper's sections and stories, and how many pages it has. Rejects with a message fit to show the student.
+ *  `onProgress` hears how many pages of a scanned paper have been read. */
+export function loadPaper(path: string, onProgress?: Progress): Promise<{ paper: Paper; pages: number }> {
     let reading = papers.get(path)
     if (!reading) {
-        reading = read(path)
+        reading = read(path, onProgress)
         // A paper that failed is read again next time (the file may have been fixed or moved back).
         reading.catch(() => papers.delete(path))
         papers.set(path, reading)
