@@ -48,6 +48,12 @@ export function excerpt(story: PaperArticle, length: number): string {
     return sentenceEnd > length * 0.5 ? cut.slice(0, sentenceEnd + 1) : `${cut.replace(/\s+\S*$/, '')}…`
 }
 
+/** "Saurabh Trivedi · New Delhi": who wrote a story and where from, as a line under its headline. */
+export function credit(story: PaperArticle): string | null {
+    const place = story.dateline?.toLowerCase().replace(/(^|[\s-])\p{L}/gu, (c) => c.toUpperCase())
+    return [story.byline, place].filter(Boolean).join(' · ') || null
+}
+
 const escape = (text: string): string =>
     text.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!)
 
@@ -59,6 +65,9 @@ export function storyArticle(paper: Paper, index: number, { url, site }: { url: 
     if (story.kicker) {
         html.push(`<p class="paper-label">${escape(story.kicker)}</p>`)
     }
+    if (story.deck) {
+        html.push(`<p class="paper-deck">${escape(story.deck)}</p>`)
+    }
     html.push(...story.paragraphs.map((p) => `<p>${escape(p)}</p>`))
     const next = continuation(stories, story)
     if (next) {
@@ -69,7 +78,7 @@ export function storyArticle(paper: Paper, index: number, { url, site }: { url: 
     return {
         url,
         title: story.title,
-        byline: null,
+        byline: credit(story),
         site: [site, section, `page ${story.page}`].filter(Boolean).join(' · '),
         html: html.join('\n'),
         details: null,

@@ -314,6 +314,11 @@
     color: var(--ben-text-3);
 }
 
+.reader-article .paper-deck {
+    font-style: italic;
+    color: var(--ben-text-2);
+}
+
 .reader-article .paper-continues {
     font-style: italic;
 }
