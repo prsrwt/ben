@@ -85,7 +85,7 @@ export const newspaperLogic = kea<newspaperLogicType>([
             actions.openApp('newspaper')
             try {
                 const { loadPaper } = await import('./openPaper')
-                const { paper, pages } = await loadPaper(file.path, (done, total) => actions.paperProgress(file.path, done, total))
+                const { paper, pages } = await loadPaper(file, (done, total) => actions.paperProgress(file.path, done, total))
                 actions.paperLoaded(file.path, paper, pages)
             } catch (e) {
                 actions.paperFailed(file.path, e instanceof Error ? e.message : String(e))

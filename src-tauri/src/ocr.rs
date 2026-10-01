@@ -42,15 +42,30 @@ mod engine {
     /// What the student sees when Windows has no text recognition for any of their languages.
     const NO_LANGUAGE: &str = "Windows can't read text in your language yet. Add English (or your language) in Settings › Time & language › Language & region, then try again.";
 
-    pub fn recognize(image: &[u8]) -> windows::core::Result<Result<OcrPage, String>> {
-        // The student's own languages first (Windows Settings); English if none of them can be read.
-        let engine = match OcrEngine::TryCreateFromUserProfileLanguages() {
-            Ok(engine) => engine,
-            Err(_) => {
-                let english = windows::Globalization::Language::CreateLanguage(&"en-US".into())?;
-                match OcrEngine::TryCreateFromLanguage(&english) {
-                    Ok(engine) => engine,
-                    Err(_) => return Ok(Err(NO_LANGUAGE.into())),
+    pub fn recognize(image: &[u8], language: Option<&str>) -> windows::core::Result<Result<OcrPage, String>> {
+        let engine = if let Some(tag) = language {
+            // A language asked for (a Hindi paper): that one, or a plain answer that Windows can't read it here.
+            let wanted = windows::Globalization::Language::CreateLanguage(&tag.into())?;
+            if !OcrEngine::IsLanguageSupported(&wanted)? {
+                let name = wanted.DisplayName().map(|n| n.to_string()).unwrap_or_else(|_| tag.to_string());
+                return Ok(Err(format!(
+                    "Windows can't read {name} from pictures on this PC, so Ben can't read this paper's pages. Open it from the Library to see the PDF."
+                )));
+            }
+            match OcrEngine::TryCreateFromLanguage(&wanted) {
+                Ok(engine) => engine,
+                Err(_) => return Ok(Err(NO_LANGUAGE.into())),
+            }
+        } else {
+            // The student's own languages first (Windows Settings); English if none of them can be read.
+            match OcrEngine::TryCreateFromUserProfileLanguages() {
+                Ok(engine) => engine,
+                Err(_) => {
+                    let english = windows::Globalization::Language::CreateLanguage(&"en-US".into())?;
+                    match OcrEngine::TryCreateFromLanguage(&english) {
+                        Ok(engine) => engine,
+                        Err(_) => return Ok(Err(NO_LANGUAGE.into())),
+                    }
                 }
             }
         };
@@ -115,25 +130,27 @@ mod engine {
 
 /// Reads the text in an image. Slow work (a large scan takes a second or two), so it runs off the main thread.
 #[cfg(windows)]
-fn recognize(image: Vec<u8>) -> Result<OcrPage, String> {
-    engine::recognize(&image).unwrap_or_else(|e| Err(format!("Windows couldn't read the text ({}).", e.message())))
+fn recognize(image: Vec<u8>, language: Option<String>) -> Result<OcrPage, String> {
+    engine::recognize(&image, language.as_deref()).unwrap_or_else(|e| Err(format!("Windows couldn't read the text ({}).", e.message())))
 }
 
 #[cfg(not(windows))]
-fn recognize(_image: Vec<u8>) -> Result<OcrPage, String> {
+fn recognize(_image: Vec<u8>, _language: Option<String>) -> Result<OcrPage, String> {
     Err("Reading text from pictures needs Windows.".into())
 }
 
 // --- Commands -------------------------------------------------------------------------------------------------
 
-/// The text in an image sent as raw bytes (a scanned newspaper page rendered by PDF.js).
+/// The text in an image sent as raw bytes (a scanned newspaper page rendered by PDF.js). An "Ocr-Language" header
+/// ("hi") asks for that language rather than the student's own.
 #[tauri::command]
 pub async fn ocr_image(request: tauri::ipc::Request<'_>) -> Result<OcrPage, String> {
     let tauri::ipc::InvokeBody::Raw(image) = request.body() else {
         return Err("expected the image's bytes".into());
     };
     let image = image.clone();
-    tauri::async_runtime::spawn_blocking(move || recognize(image)).await.map_err(|e| e.to_string())?
+    let language = request.headers().get("ocr-language").and_then(|v| v.to_str().ok()).map(str::to_string);
+    tauri::async_runtime::spawn_blocking(move || recognize(image, language)).await.map_err(|e| e.to_string())?
 }
 
 /// The text in a picture file, which must be inside one of the Library's folders (a photo of notes).
@@ -143,5 +160,5 @@ pub async fn ocr_file(state: tauri::State<'_, crate::library::LibraryState>, pat
         return Err("not in a Library folder".into());
     }
     let image = std::fs::read(&path).map_err(|_| "This picture couldn't be opened.".to_string())?;
-    tauri::async_runtime::spawn_blocking(move || recognize(image)).await.map_err(|e| e.to_string())?
+    tauri::async_runtime::spawn_blocking(move || recognize(image, None)).await.map_err(|e| e.to_string())?
 }
