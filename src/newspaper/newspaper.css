@@ -10,6 +10,10 @@
     --np-paper: #efe7d4;
     --np-grain: rgb(0 0 0 / 0.035);
     --np-scale: 1;
+    /* Grows with the window (set by NewspaperView from the sheet's width): 1 up to ~1100px, to 1.35 at ~1500px. */
+    --np-fit: 1;
+    /* Text size: the window's, times the reader's choice from "Aa". */
+    --np-size: calc(var(--np-fit) * var(--np-scale));
 
     container-type: inline-size;
     margin: 0 16px 16px;
@@ -73,12 +77,12 @@
 .np-ear {
     border: 1px solid var(--np-ink);
     padding: 6px 8px;
-    font: italic 12px/1.35 'Old Standard TT', serif;
+    font: italic calc(12px * var(--np-fit)) / 1.35 'Old Standard TT', serif;
     text-align: center;
 }
 
 .np-mast {
-    font: 60px/1.1 'UnifrakturMaguntia', serif;
+    font: calc(60px * var(--np-fit)) / 1.1 'UnifrakturMaguntia', serif;
     text-align: center;
     overflow-wrap: anywhere;
 }
@@ -91,7 +95,7 @@
     padding: 4px 2px;
     border-top: 3px double var(--np-ink);
     border-bottom: 1px solid var(--np-ink);
-    font: 12px 'Old Standard TT', serif;
+    font: calc(12px * var(--np-fit)) 'Old Standard TT', serif;
     letter-spacing: 0.12em;
     text-transform: uppercase;
 }
@@ -135,7 +139,7 @@
 
 .np-kicker {
     margin: 0 0 2px;
-    font: 11px 'Old Standard TT', serif;
+    font: calc(11px * var(--np-fit)) 'Old Standard TT', serif;
     letter-spacing: 0.18em;
     text-transform: uppercase;
     text-align: center;
@@ -145,20 +149,20 @@
     margin: 2px 0 10px;
     padding-bottom: 10px;
     border-bottom: 1px solid var(--np-ink);
-    font: 700 calc(38px * (1 + (var(--np-scale) - 1) / 2)) / 1.06 'Old Standard TT', serif;
+    font: 700 calc(38px * var(--np-fit) * (1 + (var(--np-scale) - 1) / 2)) / 1.06 'Old Standard TT', serif;
     text-align: center;
 }
 
 .np-headline {
     margin: 0 0 6px;
-    font: 700 calc(21px * var(--np-scale)) / 1.15 'Old Standard TT', serif;
+    font: 700 calc(21px * var(--np-size)) / 1.15 'Old Standard TT', serif;
     text-align: center;
 }
 
 /* Column text: 15px at the standard size, ragged right (justified narrow columns leave uneven gaps that tire the
    eyes). */
 .np-text {
-    font-size: calc(15px * var(--np-scale));
+    font-size: calc(15px * var(--np-size));
     line-height: 1.5;
     text-align: left;
     hyphens: auto;
@@ -185,7 +189,7 @@
     margin: 0 0 6px;
     padding-bottom: 6px;
     border-bottom: 1px solid var(--np-ink);
-    font: 700 15px 'Old Standard TT', serif;
+    font: 700 calc(15px * var(--np-fit)) 'Old Standard TT', serif;
     letter-spacing: 0.2em;
     text-transform: uppercase;
     text-align: center;
@@ -195,7 +199,7 @@
     margin: 0 0 8px;
     padding-bottom: 8px;
     border-bottom: 1px solid var(--np-rule);
-    font-size: calc(13.5px * var(--np-scale));
+    font-size: calc(13.5px * var(--np-size));
     line-height: 1.45;
     text-align: left;
 
@@ -204,7 +208,7 @@
     }
 
     & b {
-        font: 700 11px 'Old Standard TT', serif;
+        font: 700 calc(11px * var(--np-fit)) 'Old Standard TT', serif;
         letter-spacing: 0.08em;
     }
 }
@@ -228,7 +232,7 @@
 /* The foot: the section before, every section, the section after. */
 .np-foot {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    grid-template-columns: minmax(130px, 1fr) minmax(0, 4fr) minmax(130px, 1fr);
     align-items: start;
     gap: 20px;
     margin-top: 16px;
@@ -242,7 +246,7 @@
     justify-content: center;
     gap: 6px 24px;
     padding-top: 2px;
-    font: 13px 'Old Standard TT', serif;
+    font: calc(13px * var(--np-fit)) 'Old Standard TT', serif;
     letter-spacing: 0.14em;
     text-transform: uppercase;
 }
@@ -318,13 +322,13 @@
 
 .np-deck {
     margin: -2px 0 8px;
-    font: italic 15px/1.35 'Old Standard TT', serif;
+    font: italic calc(15px * var(--np-size)) / 1.35 'Old Standard TT', serif;
     text-align: center;
 }
 
 .np-credit {
     margin: 0 0 8px;
-    font: 10.5px 'Old Standard TT', serif;
+    font: calc(10.5px * var(--np-fit)) 'Old Standard TT', serif;
     letter-spacing: 0.14em;
     text-transform: uppercase;
     text-align: center;
@@ -349,7 +353,7 @@
 }
 
 .np-read-mast {
-    font: 30px/1.2 'UnifrakturMaguntia', serif;
+    font: calc(30px * var(--np-fit)) / 1.2 'UnifrakturMaguntia', serif;
     text-align: center;
 }
 
@@ -370,27 +374,112 @@
     }
 }
 
-/* Below the pages, always in view: the story before and after, where you are, the Reader. */
+/* Below the pages: where you are, quietly. */
 .np-read-nav {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-    align-items: start;
-    gap: 20px;
     width: 100%;
     max-width: 1100px;
     margin: 0 auto;
     padding: 8px 0 14px;
     border-top: 3px double var(--np-ink);
+    font: 12px 'Old Standard TT', serif;
+    letter-spacing: 0.06em;
+    text-align: center;
 }
 
-.np-read-where {
+/* The story before or after, in the margin beside the first or last page, where the page arrow would be: a round
+   arrow, centred, with what it is in small capitals under it; the headline on a card that slides out over the page
+   edge under the pointer (or under the label, in a wide margin). */
+.np-sheet .np-step {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    z-index: 1;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 2px;
-    padding-top: 2px;
-    font: 12px 'Old Standard TT', serif;
-    letter-spacing: 0.06em;
+    justify-content: center;
+    gap: 8px;
+    padding: 0 8px;
+    text-align: center;
+}
+
+.np-step__arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    border: 1px solid var(--np-ink);
+    border-radius: 50%;
+    transition:
+        background-color 150ms ease,
+        color 150ms ease;
+
+    & svg {
+        width: 18px;
+        height: 18px;
+    }
+}
+
+.np-step:hover .np-step__arrow,
+.np-step:focus-visible .np-step__arrow {
+    background-color: var(--np-ink);
+    color: var(--np-paper);
+}
+
+.np-step__label {
+    max-width: 100%;
+    font: 10.5px/1.4 'Old Standard TT', serif;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+}
+
+.np-step__title {
+    display: -webkit-box;
+    max-width: 100%;
+    -webkit-line-clamp: 5;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    font: 700 15px/1.25 'Old Standard TT', serif;
+}
+
+/* The headline card, beside the arrow over the page edge, shown under the pointer. */
+.np-step__peek {
+    position: absolute;
+    top: 50%;
+    width: 240px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 12px 14px;
+    border: 1px solid var(--np-rule);
+    border-radius: 10px;
+    background-color: color-mix(in oklab, var(--np-ink) 4%, var(--np-paper));
+    box-shadow: 0 14px 32px -12px rgb(0 0 0 / 0.35);
+    opacity: 0;
+    pointer-events: none;
+    transition:
+        opacity 160ms ease,
+        transform 160ms ease;
+}
+
+.np-step--next .np-step__peek {
+    right: calc(100% - 6px);
+    text-align: right;
+    transform: translate(8px, -50%);
+}
+
+.np-step--back .np-step__peek {
+    left: calc(100% - 6px);
+    text-align: left;
+    transform: translate(-8px, -50%);
+}
+
+.np-step:hover .np-step__peek,
+.np-step:focus-visible .np-step__peek {
+    opacity: 1;
+    transform: translate(0, -50%);
 }
 
 .np-read-end {
@@ -419,7 +508,7 @@
 .np-read-pages {
     color: var(--np-ink);
     font-family: 'Literata Variable', Georgia, serif;
-    font-size: calc(19px * var(--np-scale));
+    font-size: calc(19px * var(--np-size));
     line-height: 1.7;
     overflow-wrap: break-word;
 }
@@ -430,7 +519,7 @@
 
 .np-read-title {
     margin: 0.4em 0 0.35em;
-    font: 700 calc(36px * (1 + (var(--np-scale) - 1) / 2)) / 1.12 'Old Standard TT', serif;
+    font: 700 calc(36px * var(--np-fit) * (1 + (var(--np-scale) - 1) / 2)) / 1.12 'Old Standard TT', serif;
     text-align: center;
 }
 
@@ -539,13 +628,11 @@
         font-size: 30px;
     }
 
-    .np-foot,
-    .np-read-nav {
+    .np-foot {
         grid-template-columns: 1fr 1fr;
     }
 
-    .np-foot .np-sections,
-    .np-read-where {
+    .np-foot .np-sections {
         grid-column: 1 / -1;
         grid-row: 2;
     }

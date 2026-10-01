@@ -1,8 +1,9 @@
 // What to call each open window, for the island's app lists and Ben View: the article's title for a
-// Reader window (or what it's doing), the app's name for the rest. Front-most window first.
+// Reader window (or what it's doing), the paper's for a Newspaper window, the app's name for the rest. Front-most window first.
 
 import { useValues } from 'kea'
 
+import { newspaperLogic, paperWindow } from '~/newspaper/newspaperLogic'
 import { isPaperUrl, paperFile } from '~/newspaper/paperFile'
 import { readerLogic, readerWindowState } from '~/reader/readerLogic'
 
@@ -27,9 +28,15 @@ export const hostOf = (url: string): string =>
 export function useWindowSummaries(): WindowSummary[] {
     const { windows } = useValues(windowsLogic)
     const { histories } = useValues(readerLogic)
+    const papers = useValues(newspaperLogic).windows
 
     return [...windows].reverse().map((w) => {
         const base = { id: w.id, appId: w.appId, minimized: w.minimized }
+        if (w.appId === 'newspaper') {
+            // A Newspaper window by its paper ("The Hindu, 17 September 2026").
+            const open = paperWindow(papers, w.id).open
+            return { ...base, title: open?.file.title ?? APPS.newspaper.title, site: open ? APPS.newspaper.title : null, urls: [] }
+        }
         if (w.appId !== 'reader') {
             return { ...base, title: APPS[w.appId].title, site: null, urls: [] }
         }

@@ -141,7 +141,8 @@ function toLines(items: TextItem[], acrossGutter: (from: number, to: number, y: 
                 !(item.size < 15 && acrossGutter(l.right, item.x, item.y + item.size / 2))
         )
         if (line) {
-            const gap = item.x - line.right > item.size * 0.15 && !line.text.endsWith(' ') ? ' ' : ''
+            // A space between items more than a sliver apart; some papers set words very tight (0.1 em).
+            const gap = item.x - line.right > item.size * 0.08 && !line.text.endsWith(' ') ? ' ' : ''
             line.text += gap + item.str
             line.right = Math.max(line.right, item.x + item.width)
             line.bottom = Math.max(line.bottom, item.y + item.size)
@@ -183,6 +184,31 @@ function toBlocks(lines: Line[]): Block[] {
             blocks.push({ lines: [line], x: line.x, y: line.y, right: line.right, bottom: line.bottom, size: line.size, text: '' })
         }
     }
+    // Headline-sized lines are often centred, so the lines of one headline start at different places: blocks of large
+    // type stacked right on top of each other, overlapping, are one headline.
+    for (let merged = true; merged; ) {
+        merged = false
+        for (const upper of blocks) {
+            const lower = blocks.find(
+                (b) =>
+                    b !== upper &&
+                    upper.size > 14 &&
+                    Math.abs(b.size - upper.size) < upper.size * 0.15 &&
+                    b.y >= upper.bottom - upper.size * 0.5 &&
+                    b.y - upper.bottom < upper.size * 0.6 &&
+                    Math.min(b.right, upper.right) - Math.max(b.x, upper.x) > 0.3 * Math.min(b.right - b.x, upper.right - upper.x)
+            )
+            if (lower) {
+                upper.lines.push(...lower.lines)
+                upper.x = Math.min(upper.x, lower.x)
+                upper.right = Math.max(upper.right, lower.right)
+                upper.bottom = Math.max(upper.bottom, lower.bottom)
+                blocks.splice(blocks.indexOf(lower), 1)
+                merged = true
+                break
+            }
+        }
+    }
     for (const block of blocks) {
         block.lines.sort((a, b) => a.y - b.y)
         // Words broken across lines with a hyphen are joined again.
@@ -194,7 +220,7 @@ function toBlocks(lines: Line[]): Block[] {
 }
 
 /** Ads and paper furniture: subscription prompts, phone numbers, web addresses, prices with offers, print codes. */
-const AD = /(missed call|to subscribe|scan (the )?qr|\b\d{10}\b|\+91|www\.|https?:|\b(off|discount|offer|sale|emi|toll[- ]free|call now|book now|helpline)\b.*₹|₹.*\b(off|onwards|only)\b|printed (at|and published)|regd\.? no|rni no)/i
+const AD = /(missed call|to subscribe|scan (the )?qr|\b\d{10}\b|\+91|www\.|https?:|\b(off|discount|offer|sale|emi|toll[- ]free|call now|book now|helpline)\b.*₹|₹.*\b(off|onwards|only)\b|printed (at|and published)|regd\.? no|rni no|[\w.-]+@[\w-]+\.\w{2,})/i
 /** Short codes printed on e-paper pages ("A IN-X", "CM", "YK", "J ND-NDE"). */
 const PRINT_CODE = /^([A-Z]{1,3}( [A-Z]{2,3}-[A-Z]{1,4})?|CM|YK|[A-Z] [A-Z]{2}-[A-Z]{1,4})$/
 const TEASER = /^(.*?)\s*(?:»\s*(?:[Pp][Aa][Gg][Ee]|पेज|पृष्ठ)|\bPAGE|(?:पेज|पृष्ठ)\s*»?)\s*(\d{1,2})\s*$/
@@ -206,12 +232,15 @@ const DATELINE = /^([A-Z][A-Z.'’ -]{2,30}?)\s+(?=[A-Z][a-z])/
  *  e-papers hide in their pages ("da989eb2-7095-4175-8d0f-20d91e5ae8b0"). */
 const NOT_TEXT = /[\uE000-\uF8FF\uFFFD]|\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi
 
+/** Words in a page's top strip that mark an advert or notice, not a section. */
+const SECTION_NOT = /\b(notice|tenders?|classifieds?|railway|wishes|advertorial|advt|calendar|corrigendum|auction|recruitment|obituar(y|ies))\b/i
+
 /** Words in a page's running head that aren't the section: the paper's name, days, months, dates, page numbers. */
 const RUNNING_HEAD =
-    /\b(THE HINDU|HINDU|INDIAN EXPRESS|EXPRESS|MINT|BUSINESS LINE|BUSINESSLINE|TIMES OF INDIA|HINDUSTAN TIMES|(MON|TUES|WEDNES|THURS|FRI|SATUR|SUN)DAY|JANUARY|FEBRUARY|MARCH|APRIL|MAY|JUNE|JULY|AUGUST|SEPTEMBER|OCTOBER|NOVEMBER|DECEMBER|\d+)\b/gi
+    /\b(THE HINDU|HINDU|THE INDIAN EXPRESS|INDIAN EXPRESS|EXPRESS|THE TRIBUNE|THE TELEGRAPH|THE STATESMAN|DECCAN HERALD|MINT|BUSINESS LINE|BUSINESSLINE|TIMES OF INDIA|HINDUSTAN TIMES|(MON|TUES|WEDNES|THURS|FRI|SATUR|SUN)DAY|JANUARY|FEBRUARY|MARCH|APRIL|MAY|JUNE|JULY|AUGUST|SEPTEMBER|OCTOBER|NOVEMBER|DECEMBER|\d+)\b/gi
 
 /** A name in a byline: "Saurabh", "Rajagopal", "K.", "D'Souza". */
-const NAME = String.raw`(?:\p{Lu}\p{Ll}[\p{L}'’.-]*|\p{Lu}\.)`
+const NAME = String.raw`(?:\p{Lu}\p{Ll}(?:[\p{L}'’.-]*[\p{L}.])?|\p{Lu}\.)`
 /** A dateline: the place in capitals a story starts from ("NEW DELHI", "THIRUVANANTHAPURAM"). */
 const PLACE = String.raw`[A-Z][A-Z.'’-]{2,}(?:\s[A-Z][A-Z.'’-]+){0,2}`
 /** Capitals that start a sentence but aren't a place. */
@@ -219,12 +248,25 @@ const NOT_A_PLACE = /^(BJP|CBI|AAP|DMK|AIADMK|TMC|ISRO|NASA|RBI|SEBI|NIA|IPL|BCC
 /** A byline and dateline after the summary ("…surveillance mission Saurabh Trivedi NEW DELHI The Indian Navy…"),
  *  or a dateline alone at the start ("GENEVA The recovery…"). */
 const BYLINE = new RegExp(String.raw`(^|[\p{Ll}\d.;:’”)]\s+)(${NAME}(?:\s+${NAME}){1,3})\s+(${PLACE})\s+(?=\p{Lu}\p{Ll}|[“"‘])`, 'u')
+/** A byline, place and date at the start, as the Indian Express prints them ("Sophiya Mathew New Delhi, September 15
+ *  IN MAY 2022…"). */
+const MONTH_NAME = 'January|February|March|April|May|June|July|August|September|October|November|December'
+const BYLINE_PLACE_DATE = new RegExp(
+    String.raw`^(${NAME}(?:\s+${NAME}){1,3}?)\s+(\p{Lu}\p{Ll}+(?:\s?\p{Lu}\p{Ll}+)?),\s*(?:${MONTH_NAME})\s*\d{1,2}\s+`,
+    'u'
+)
 const DATELINE_START = new RegExp(String.raw`^(${PLACE})\s+(?=\p{Lu}\p{Ll}|[“"‘])`, 'u')
 
 /** A story's text taken apart: the summary printed above the byline, the byline, the dateline and the story. */
 export function splitHead(text: string): { deck: string | null; byline: string | null; dateline: string | null; body: string } {
+    const dated = BYLINE_PLACE_DATE.exec(text)
+    if (dated) {
+        // "NewDelhi" (set tight) → "New Delhi".
+        const place = dated[2].replace(/(\p{Ll})(\p{Lu})/gu, '$1 $2').toUpperCase()
+        return { deck: null, byline: dated[1], dateline: place, body: text.slice(dated[0].length) }
+    }
     const found = BYLINE.exec(text.slice(0, 700))
-    if (found && !NOT_A_PLACE.test(found[3])) {
+    if (found && !NOT_A_PLACE.test(found[3].split(' ')[0])) {
         const deck = text.slice(0, found.index + found[1].length).trim()
         return { deck: deck || null, byline: found[2], dateline: found[3], body: text.slice(found.index + found[0].length) }
     }
@@ -261,9 +303,16 @@ export function readPage(page: PageText, pageNumber: number): { section: string 
         // page number are taken out ("THE HINDU · 3 · Saturday, September 26, 2026 · Chennai · News" → "News").
         const top = blocks
             .filter((b) => b.y < page.height * 0.06 && b.size > body * 1.3)
-            .map((b) => ({ size: b.size, text: b.text.replace(RUNNING_HEAD, ' ').replace(/[^\p{L} &’'-]/gu, ' ').replace(/\s+/g, ' ').trim() }))
+            .map((b) => ({
+                size: b.size,
+                // The running head carries the paper's name, the date or the page number; an advert's headline doesn't.
+                runningHead: (b.text.match(RUNNING_HEAD) ?? []).length >= 2,
+                text: b.text.replace(RUNNING_HEAD, ' ').replace(/[^\p{L} &’'-]/gu, ' ').replace(/\s+/g, ' ').trim(),
+            }))
+            // A section name is a few real words: not glued print text ("VEHICLESOVERLOANDEFAULT"), not an advert's.
             .filter((b) => b.text.length >= 3 && b.text.length <= 30)
-            .sort((a, b) => b.size - a.size)
+            .filter((b) => !/\S{17,}/.test(b.text) && !SECTION_NOT.test(b.text))
+            .sort((a, b) => Number(b.runningHead) - Number(a.runningHead) || b.size - a.size)
         section = top[0]?.text ?? null
     }
 
@@ -274,6 +323,10 @@ export function readPage(page: PageText, pageNumber: number): { section: string 
     for (const b of blocks) {
         const teaser = TEASER.exec(b.text)
         if (!teaser || b.size >= body * 3) {
+            continue
+        }
+        // "» CONTINUED ON PAGE 2" ends a story; it isn't a pointer to one.
+        if (/\b(continued|contd\.?)\s*(on|from)?\s*$/i.test(teaser[1].replace(/[»\s]+$/, '')) || /continuedo?n\s*$/i.test(teaser[1])) {
             continue
         }
         used.add(b)
@@ -288,7 +341,8 @@ export function readPage(page: PageText, pageNumber: number): { section: string 
                 title = above.text
             }
         }
-        if (title) {
+        // A pointer without a title, or with only the end of one ("autonomy or Article 370 in the"), points nowhere useful.
+        if (title.length >= 12 && /^[\p{Lu}\p{N}“"‘'\u0900-\u097F]/u.test(title)) {
             const dateline = title.length > 80 ? DATELINE.exec(title) : null
             teasers.push(
                 dateline
@@ -302,7 +356,20 @@ export function readPage(page: PageText, pageNumber: number): { section: string 
     const headlines = remaining
         .filter((b) => b.size >= body * 1.6 && b.text.length >= 12 && b.y > page.height * 0.04)
         .sort((a, b) => a.y - b.y || a.x - b.x)
-    const bodyBlocks = remaining.filter((b) => b.size < body * 1.35 && !isUpperLabel(b.text))
+    // Body text; capitals-only labels aren't, except "» CONTINUED ON PAGE 2", which ends its story.
+    const bodyBlocks = remaining.filter((b) => b.size < body * 1.35 && (!isUpperLabel(b.text) || POINTER.test(b.text)))
+
+    // A drop cap: the story's first letter set large on its own ("P" of "Pakistan"), beside the first lines. It goes
+    // back in front of the line beside it.
+    for (const cap of remaining.filter((b) => b.text.length === 1 && /\p{Lu}/u.test(b.text) && b.size > body * 1.8)) {
+        const beside = bodyBlocks.find((b) => {
+            const first = b.lines[0]
+            return first.x - cap.right > -body && first.x - cap.right < body * 3 && first.y >= cap.y - body && first.y < cap.bottom
+        })
+        if (beside) {
+            beside.text = cap.text + beside.text
+        }
+    }
 
     // Each body block belongs to the nearest headline above it that covers it. A headline is often narrower than
     // its story, though, so a block that starts beside one already placed (same height, just across a gutter) is
@@ -342,7 +409,12 @@ export function readPage(page: PageText, pageNumber: number): { section: string 
                 return p.text.replace(POINTER, '').trim()
             })
             .join(' ')
-        const clean = text.replace(LEAD_MARK, '')
+        // Words broken at the end of a column ("Pa- kistan", "host- ed") are joined again; a hyphen before a capital is
+        // a real one ("mid- September" → "mid-September").
+        const clean = text
+            .replace(LEAD_MARK, '')
+            .replace(/(\p{L})- (\p{Ll})/gu, '$1$2')
+            .replace(/(\p{L})- (\p{Lu})/gu, '$1-$2')
         if (clean.length < 120) {
             continue
         }
