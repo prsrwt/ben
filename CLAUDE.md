@@ -93,17 +93,22 @@ Build one app at a time, only when the user asks. Everything else stays empty.
   column text in Literata with hairline column rules and drop caps. Each section is a page: the first story as
   the lead across four of six columns, "In brief" beside it on the front page (pointers and briefs with their
   datelines, each leading to its story) or "In this section" elsewhere, the other stories in rows of three,
-  sections along the foot; ← → move between sections. Its index is the island's Contents pill
+  sections along the foot between named "‹ Previous section" / "Next section ›" steps, and the same named
+  steps either end of the date bar ("‹ Front page … Sport ›"; the printed pages are in the right ear); ← → move
+  between sections. Its index is the island's Contents pill
   (`NewspaperIslandOptions.tsx`, registered through `openBooks.ts` like a Reader book): sections, and their stories
   with printed pages; a story is turned to, scrolled to and glows briefly. Clicking anywhere on a story opens it on its own
   sheet in the same window and the same newspaper style (`StorySheet`, asked for 2026-10-01 for reading all day): a
-  small masthead and the date between rules stay at the top ("← Section" back, page, reading time); below, the story
+  small masthead and the date between rules stay at the top ("‹ Back to Section", page, reading time), with × in the
+  corner (both back to the page); below, the story
   is a book, paged like the Reader (`useBook` and reader.css's page rules): kicker, headline, summary (deck) in
   italics, byline and dateline in small capitals, then Literata 19px / 1.7 ragged right, its "continued on page n"
   part joined on. ← → / Space / PageUp/Down or the margins turn pages; past the last page the next story, and on
-  into the next section ("Next, in Sport →" on the last page); before the first page, the story before. Esc
+  into the next section ; before the first page, the story before. Below the pages, always in view: "‹ Previous story" / "Next story ›"
+  with their titles ("Previous section: …" / "Next section: … ›" when the section changes), and between them "Page
+  1–2 of 5 · Story 3 of 8 in News" and "Open in Reader". The story ends with the paper's ■ after its last word. Esc
   returns to the page where you were, or to the story's own section page if reading carried on into another
-  section; the island pill follows the story's section. "Open in Reader" is still there. Under the pointer a story
+  section; the island pill follows the story's section. Under the pointer a story
   takes a faint tint (what a click opens). A hover lift (scale 1.06) was tried and dropped on 2026-10-01: it didn't make the words readable. Excerpts only: a headline, "Read on" or "Page n →" opens
   the story in the Reader (the Reader window already showing a paper's story, else a new one), with its "continued
   on page n" part joined on. Narrow windows fold to one column (container query). The two fonts (~100 KB) download
@@ -171,7 +176,7 @@ changes check behaviour in the real app, not only in a browser tab.
   WebView2 process it started (private bytes). Dev mode is not a fair ruler, and live reloads inflate it.
   Baseline on 2026-09-29: about 286 MB private, 0% idle CPU. Roughly 100 MB of that is WebView2's fixed cost;
   the glass blur costs about 30 MB.
-- Bundle: 362 KB of JS on 2026-10-01 (213 KB before Search, menus and the Library), mostly the Tauri API, React,
+- Bundle: 364 KB of JS on 2026-10-01 (213 KB before Search, menus and the Library), mostly the Tauri API, React,
   Readability, DOMPurify and Kea. PDF.js (legacy build, ~500 KB + a 1.3 MB worker) is a separate file loaded only when a paper opens. To see what a change costs, build with `--sourcemap` and sum bytes per
   source package.
 
