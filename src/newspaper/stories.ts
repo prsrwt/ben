@@ -48,6 +48,13 @@ export function excerpt(story: PaperArticle, length: number): string {
     return sentenceEnd > length * 0.5 ? cut.slice(0, sentenceEnd + 1) : `${cut.replace(/\s+\S*$/, '')}…`
 }
 
+/** Minutes a story takes to read at an ordinary pace (about 230 words a minute), its continuation included. */
+export function readingMinutes(stories: PaperArticle[], story: PaperArticle): number {
+    const next = continuation(stories, story)
+    const words = [...story.paragraphs, ...(next?.paragraphs ?? [])].join(' ').split(/\s+/).length
+    return Math.max(1, Math.round(words / 230))
+}
+
 /** "Saurabh Trivedi · New Delhi": who wrote a story and where from, as a line under its headline. */
 export function credit(story: PaperArticle): string | null {
     const place = story.dateline?.toLowerCase().replace(/(^|[\s-])\p{L}/gu, (c) => c.toUpperCase())
