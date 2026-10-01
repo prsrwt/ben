@@ -1,8 +1,9 @@
 // The Library window. First run: "Where do you keep your study material?" (suggested folders with how many
 // documents each holds, plus any other folder) and the student's name, to spot their own work. After that:
 // subjects down the side, and the chosen subject's files on shelves by kind (notes, slides, question papers…),
-// with "Needs you" first for files Ben couldn't place. Clicking a file opens it (newspaper PDFs as articles in the
-// Reader, other PDFs and photos inside Ben, the rest in their usual program); its kind and subject can be corrected from its menu. Files are only read.
+// with "Needs you" first for files Ben couldn't place; newspapers newest first, with their dates. Clicking a file
+// opens it (newspaper PDFs as broadsheets in the Newspaper window, other PDFs and photos inside Ben, the rest in
+// their usual program); its kind and subject can be corrected from its menu. Files are only read.
 
 import { convertFileSrc } from '@tauri-apps/api/core'
 import { homeDir } from '@tauri-apps/api/path'
@@ -13,8 +14,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { cn } from '~/desktop/cn'
 import { ContextMenu, MenuAt, MenuItem } from '~/desktop/ContextMenu'
 import { IS_DESKTOP_APP } from '~/desktop/nativeWindow'
-import { paperUrl } from '~/newspaper/paperFile'
-import { readerLogic } from '~/reader/readerLogic'
+import { newspaperLogic } from '~/newspaper/newspaperLogic'
 
 import { FileKind, KIND_LABELS } from './classify'
 import { FolderSuggestion, openInProgram, suggestFolders } from './libraryApi'
@@ -45,16 +45,28 @@ const VIEWABLE = /\.(pdf|jpe?g|png|webp|bmp)$/i
 
 const BUTTON = 'px-3 py-1.5 rounded-lg text-sm font-semibold'
 
-/** A newspaper PDF, read as articles in the Reader. */
+/** A newspaper PDF, read as a broadsheet in the Newspaper window. */
 const isPaper = (item: LibraryItem): boolean => item.recognised.kind === 'newspaper' && /\.pdf$/i.test(item.file.name)
 
-/** "The Hindu, 26 September 2026" when the paper and date were recognised, else the file's title. */
-function paperTitle(item: LibraryItem): string {
-    const { paper, date } = item.recognised
+/** A recognised publication date ("2026-09-17") as a Date, or null. */
+function paperDay(item: LibraryItem): Date | null {
+    const { date } = item.recognised
     const day = date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? new Date(`${date}T00:00`) : null
-    const when = day && !isNaN(day.getTime()) ? day.toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' }) : date
+    return day && !isNaN(day.getTime()) ? day : null
+}
+
+/** "The Hindu, 17 September 2026" when the paper and date were recognised, else the file's title. */
+function paperTitle(item: LibraryItem): string {
+    const { paper } = item.recognised
+    const when = paperDay(item)?.toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' }) ?? item.recognised.date
     return paper ? (when ? `${paper}, ${when}` : paper) : item.title
 }
+
+/** Shelf order: newspapers newest first (undated ones last), everything else by title. */
+const shelfOrder = (kind: FileKind) => (a: LibraryItem, b: LibraryItem): number =>
+    kind === 'newspaper'
+        ? (paperDay(b)?.getTime() ?? 0) - (paperDay(a)?.getTime() ?? 0) || a.title.localeCompare(b.title)
+        : a.title.localeCompare(b.title)
 
 export function LibraryView(): JSX.Element {
     const { loaded, settings } = useValues(libraryLogic)
@@ -177,7 +189,7 @@ function Setup({ onDone }: { onDone?: () => void }): JSX.Element {
 function Shelves(): JSX.Element {
     const { items, subjects, progress, settings } = useValues(libraryLogic)
     const { correct } = useActions(libraryLogic)
-    const { openLinkInNewWindow } = useActions(readerLogic)
+    const { openPaper } = useActions(newspaperLogic)
     const [subject, setSubject] = useState<string | null>(null)
     const [showFolders, setShowFolders] = useState(false)
     const [viewing, setViewing] = useState<LibraryItem | null>(null)
@@ -201,7 +213,7 @@ function Shelves(): JSX.Element {
 
     const openItem = (item: LibraryItem): void => {
         if (isPaper(item)) {
-            openLinkInNewWindow(paperUrl(item.file.path, paperTitle(item)))
+            openPaper({ path: item.file.path, title: paperTitle(item), paper: item.recognised.paper ?? null, date: item.recognised.date ?? null, story: null })
         } else if (VIEWABLE.test(item.file.name)) {
             setViewing(item)
         } else {
@@ -249,11 +261,14 @@ function Shelves(): JSX.Element {
                     title={item.files.map((f) => f.path).join('\n')}
                 >
                     <span className="shrink-0 w-12 text-[10px] font-bold tracking-wide text-tertiary">{formats}</span>
-                    <span className="min-w-0 truncate text-sm text-primary">{item.title}</span>
+                    <span className="min-w-0 truncate text-sm text-primary">{item.recognised.kind === 'newspaper' && item.recognised.paper ? item.recognised.paper : item.title}</span>
                     {item.recognised.mine && <span className="shrink-0 px-1.5 rounded text-[10px] font-semibold text-accent bg-hover">Mine</span>}
                     {copies > 0 && <span className="shrink-0 text-[10px] text-tertiary">{copies + 1} copies</span>}
                     <span className="ml-auto shrink-0 text-xs text-tertiary">
                         {subject === null && item.recognised.subject ? `${item.recognised.subject} · ` : ''}
+                        {item.recognised.kind === 'newspaper' && paperDay(item)
+                            ? `${paperDay(item)!.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })} · `
+                            : ''}
                         {item.file.pages ? `${item.file.pages} p` : ''}
                     </span>
                 </button>
@@ -309,7 +324,7 @@ function Shelves(): JSX.Element {
                                 <summary className="px-3 text-xs font-semibold uppercase tracking-wide text-tertiary cursor-default">
                                     {KIND_LABELS[kind]} · {shelf.length}
                                 </summary>
-                                <ul className="m-0 mt-1 p-0 list-none">{shelf.sort((a, b) => a.title.localeCompare(b.title)).map(row)}</ul>
+                                <ul className="m-0 mt-1 p-0 list-none">{shelf.sort(shelfOrder(kind)).map(row)}</ul>
                             </details>
                         )
                     }
@@ -318,7 +333,7 @@ function Shelves(): JSX.Element {
                             <h3 className="m-0 mb-1 px-3 text-xs font-semibold uppercase tracking-wide text-tertiary">
                                 {KIND_LABELS[kind]} · {shelf.length}
                             </h3>
-                            <ul className="m-0 p-0 list-none">{shelf.sort((a, b) => a.title.localeCompare(b.title)).map(row)}</ul>
+                            <ul className="m-0 p-0 list-none">{shelf.sort(shelfOrder(kind)).map(row)}</ul>
                         </section>
                     )
                 })}

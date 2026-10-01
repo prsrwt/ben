@@ -1,0 +1,270 @@
+/* The Newspaper window's broadsheet (NewspaperView.tsx): newsprint with a faint dot grain, a blackletter
+   masthead, the date between a double and a single rule, columns divided by hairlines, headlines in Old Standard
+   TT and column text in Literata. Dark theme: the same sheet in dark newsprint. Narrow windows (side by side)
+   fold the columns. Plain arrow cursor everywhere, as in the rest of Ben. */
+
+.np-sheet {
+    --np-ink: #1d1a16;
+    --np-rule: rgb(29 26 22 / 0.5);
+    --np-paper: #efe7d4;
+    --np-grain: rgb(0 0 0 / 0.035);
+
+    container-type: inline-size;
+    margin: 0 16px 16px;
+    padding: 22px 32px 26px;
+    border-radius: 16px;
+    color: var(--np-ink);
+    background-color: var(--np-paper);
+    background-image: radial-gradient(var(--np-grain) 1px, transparent 1px);
+    background-size: 3px 3px;
+    font-family: 'Literata Variable', Georgia, serif;
+    cursor: default;
+
+    & button {
+        cursor: default;
+        font: inherit;
+        color: inherit;
+        text-align: inherit;
+        background: none;
+        border: 0;
+        padding: 0;
+    }
+}
+
+[theme='dark'] .np-sheet {
+    --np-ink: #d9d0bd;
+    --np-rule: rgb(217 208 189 / 0.38);
+    --np-paper: #23211d;
+    --np-grain: rgb(255 255 255 / 0.03);
+}
+
+.np-top {
+    display: grid;
+    grid-template-columns: minmax(0, 180px) 1fr minmax(0, 180px);
+    align-items: center;
+    gap: 16px;
+}
+
+.np-ear {
+    border: 1px solid var(--np-ink);
+    padding: 6px 8px;
+    font: italic 12px/1.35 'Old Standard TT', serif;
+    text-align: center;
+}
+
+.np-mast {
+    font: 60px/1.1 'UnifrakturMaguntia', serif;
+    text-align: center;
+    overflow-wrap: anywhere;
+}
+
+.np-date {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 10px;
+    padding: 4px 2px;
+    border-top: 3px double var(--np-ink);
+    border-bottom: 1px solid var(--np-ink);
+    font: 12px 'Old Standard TT', serif;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.np-grid {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    margin-top: 14px;
+}
+
+.np-row {
+    border-top: 1px solid var(--np-ink);
+    padding-top: 12px;
+}
+
+.np-col {
+    padding: 0 12px;
+    border-left: 1px solid var(--np-rule);
+
+    &:first-child {
+        padding-left: 0;
+        border-left: 0;
+    }
+
+    &:last-child {
+        padding-right: 0;
+    }
+}
+
+.np-span2 {
+    grid-column: span 2;
+}
+
+.np-span4 {
+    grid-column: span 4;
+}
+
+.np-span6 {
+    grid-column: span 6;
+}
+
+.np-kicker {
+    margin: 0 0 2px;
+    font: 11px 'Old Standard TT', serif;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    text-align: center;
+}
+
+.np-lead {
+    margin: 2px 0 10px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--np-ink);
+    font: 700 38px/1.06 'Old Standard TT', serif;
+    text-align: center;
+}
+
+.np-headline {
+    margin: 0 0 6px;
+    font: 700 20px/1.12 'Old Standard TT', serif;
+    text-align: center;
+}
+
+.np-text {
+    font-size: 12.5px;
+    line-height: 1.45;
+    text-align: justify;
+    hyphens: auto;
+
+    & p {
+        margin: 0 0 0.5em;
+    }
+
+    /* A drop cap opens each story. */
+    & p:first-child::first-letter {
+        float: left;
+        padding: 4px 5px 0 0;
+        font: 700 44px/0.8 'Old Standard TT', serif;
+    }
+}
+
+.np-text--3 {
+    columns: 3;
+    column-gap: 22px;
+    column-rule: 1px solid var(--np-rule);
+}
+
+.np-side-title {
+    margin: 0 0 6px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--np-ink);
+    font: 700 15px 'Old Standard TT', serif;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    text-align: center;
+}
+
+.np-brief {
+    margin: 0 0 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--np-rule);
+    font-size: 12px;
+    line-height: 1.4;
+    text-align: justify;
+
+    &:last-child {
+        border-bottom: 0;
+    }
+
+    & b {
+        font: 700 11px 'Old Standard TT', serif;
+        letter-spacing: 0.08em;
+    }
+}
+
+.np-link:hover {
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+}
+
+.np-turn,
+.np-page {
+    font: italic 11.5px 'Old Standard TT', serif;
+    white-space: nowrap;
+}
+
+.np-sheet button.np-turn {
+    border-bottom: 1px solid currentColor;
+}
+
+.np-sections {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px 24px;
+    margin-top: 16px;
+    padding-top: 7px;
+    border-top: 3px double var(--np-ink);
+    font: 13px 'Old Standard TT', serif;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+}
+
+.np-sheet .np-section {
+    font: inherit;
+    letter-spacing: inherit;
+    text-transform: inherit;
+
+    &:hover {
+        text-decoration: underline;
+    }
+}
+
+.np-sheet .np-section--current {
+    font-weight: 700;
+}
+
+/* A narrow window (side by side): ears and the lead's three columns fold away, stories stack. */
+@container (max-width: 720px) {
+    .np-top {
+        grid-template-columns: 1fr;
+    }
+
+    .np-ear {
+        display: none;
+    }
+
+    .np-mast {
+        font-size: 44px;
+    }
+
+    .np-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .np-span2,
+    .np-span4,
+    .np-span6 {
+        grid-column: auto;
+    }
+
+    .np-col {
+        padding: 0;
+        border-left: 0;
+    }
+
+    .np-col + .np-col {
+        margin-top: 12px;
+        padding-top: 12px;
+        border-top: 1px solid var(--np-rule);
+    }
+
+    .np-text--3 {
+        columns: 1;
+    }
+
+    .np-lead {
+        font-size: 30px;
+    }
+}

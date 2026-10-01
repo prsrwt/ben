@@ -36,10 +36,18 @@ export interface PaperSection {
     articles: PaperArticle[]
 }
 
+/** A pointer to a story inside. A brief ("GENEVA The recovery of… PAGE 14") also has a few lines of text: its
+ *  title is then the dateline ("GENEVA"). */
+export interface Teaser {
+    title: string
+    text: string | null
+    page: number
+}
+
 export interface Paper {
     sections: PaperSection[]
-    /** Front-page pointers to stories inside ("JHIRAM VALLEY CASE … NEWS » PAGE 4"). */
-    teasers: { title: string; page: number }[]
+    /** Front-page pointers to stories inside ("JHIRAM VALLEY CASE … NEWS » PAGE 4"), and briefs. */
+    teasers: Teaser[]
 }
 
 interface Line {
@@ -123,6 +131,11 @@ function toLines(items: TextItem[], acrossGutter: (from: number, to: number) => 
     return lines.map((l) => ({ ...l, text: l.text.replace(/\s+/g, ' ').trim() })).filter((l) => l.text)
 }
 
+function endsInPointer(block: Block, below: Line): boolean {
+    const last = block.lines.reduce((a, c) => (c.y > a.y ? c : a))
+    return below.y > last.y && POINTER.test(last.text)
+}
+
 /** Blocks: lines of the same size stacked closely in the same column. */
 function toBlocks(lines: Line[]): Block[] {
     const blocks: Block[] = []
@@ -131,6 +144,8 @@ function toBlocks(lines: Line[]): Block[] {
         const pointer = POINTER.test(line.text) && line.text.replace(POINTER, '').length < 25
         const block = pointer ? undefined : blocks.find(
             (b) =>
+                // A block ending in "PAGE n" is finished: the next line starts another brief or story.
+                !endsInPointer(b, line) &&
                 Math.abs(b.size - line.size) < line.size * 0.2 &&
                 line.y >= b.bottom - line.size * 0.5 &&
                 line.y - b.bottom < line.size * 0.9 &&
@@ -161,20 +176,29 @@ function toBlocks(lines: Line[]): Block[] {
 const AD = /(missed call|to subscribe|scan (the )?qr|\b\d{10}\b|\+91|www\.|https?:|\b(off|discount|offer|sale|emi|toll[- ]free|call now|book now|helpline)\b.*₹|₹.*\b(off|onwards|only)\b|printed (at|and published)|regd\.? no|rni no)/i
 /** Short codes printed on e-paper pages ("A IN-X", "CM", "YK", "J ND-NDE"). */
 const PRINT_CODE = /^([A-Z]{1,3}( [A-Z]{2,3}-[A-Z]{1,4})?|CM|YK|[A-Z] [A-Z]{2}-[A-Z]{1,4})$/
-const TEASER = /^(.*?)\s*(news|world|business|sport|sports|opinion|editorial|city|states?|life|science|international)?\s*»\s*page\s*(\d+)\s*$/i
+const TEASER = /^(.*?)\s*(?:»\s*[Pp][Aa][Gg][Ee]|\bPAGE)\s*(\d{1,2})\s*$/
+/** The section named before a teaser's pointer ("… NEWS » PAGE 4"), not part of its title. */
+const POINTER_SECTION = /\s*\b(news|world|business|sport|sports|opinion|editorial|city|states?|life|science|international)\s*$/i
+/** A brief's dateline: the place in capitals it starts with ("GENEVA The…", "NEW DELHI The…"). */
+const DATELINE = /^([A-Z][A-Z.'’ -]{2,30}?)\s+(?=[A-Z][a-z])/
+/** Text that isn't words: icon-font symbols (private-use characters), unknown characters, and ID codes some
+ *  e-papers hide in their pages ("da989eb2-7095-4175-8d0f-20d91e5ae8b0"). */
+const NOT_TEXT = /[\uE000-\uF8FF\uFFFD]|\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi
 
 /** Words in a page's running head that aren't the section: the paper's name, days, months, dates, page numbers. */
 const RUNNING_HEAD =
     /\b(THE HINDU|HINDU|INDIAN EXPRESS|EXPRESS|MINT|BUSINESS LINE|BUSINESSLINE|TIMES OF INDIA|HINDUSTAN TIMES|(MON|TUES|WEDNES|THURS|FRI|SATUR|SUN)DAY|JANUARY|FEBRUARY|MARCH|APRIL|MAY|JUNE|JULY|AUGUST|SEPTEMBER|OCTOBER|NOVEMBER|DECEMBER|\d+)\b/gi
 
-/** "» PAGE 4" at the end of a line: a teaser's pointer, or a story continuing on that page. */
-const POINTER = /»\s*page\s*(\d+)\s*$/i
+/** "» PAGE 4" (or "PAGE 4" after an icon, in capitals) at the end of a line: a teaser's pointer, or a story
+ *  continuing on that page. */
+const POINTER = /(?:»\s*[Pp][Aa][Gg][Ee]|\bPAGE)\s*(\d{1,2})\s*$/
 
 const isUpperLabel = (text: string): boolean => text.length >= 3 && text.length <= 40 && text === text.toUpperCase() && /[A-Z]/.test(text)
 
-export function readPage(page: PageText, pageNumber: number): { section: string | null; articles: PaperArticle[]; teasers: { title: string; page: number }[] } {
-    const body = bodySize(page.items)
-    const lines = toLines(page.items, findGutters(page.items, page.width, body))
+export function readPage(page: PageText, pageNumber: number): { section: string | null; articles: PaperArticle[]; teasers: Teaser[] } {
+    const items = page.items.map((item) => ({ ...item, str: item.str.replace(NOT_TEXT, '') })).filter((item) => item.str.trim())
+    const body = bodySize(items)
+    const lines = toLines(items, findGutters(items, page.width, body))
     const blocks = toBlocks(lines).filter((b) => !PRINT_CODE.test(b.text) && !AD.test(b.text))
 
     // Section: an all-capitals label in the strip at the top of an inner page ("Chennai KERALAM" → "KERALAM").
@@ -191,7 +215,7 @@ export function readPage(page: PageText, pageNumber: number): { section: string 
     }
 
     // Teasers ("JHIRAM VALLEY CASE All convicts get death penalty … NEWS » PAGE 4"): pointers, not articles.
-    const teasers: { title: string; page: number }[] = []
+    const teasers: Teaser[] = []
     const remaining: Block[] = []
     const used = new Set<Block>()
     for (const b of blocks) {
@@ -200,7 +224,7 @@ export function readPage(page: PageText, pageNumber: number): { section: string 
             continue
         }
         used.add(b)
-        let title = teaser[1].trim()
+        let title = teaser[1].replace(POINTER_SECTION, '').trim()
         if (title.length < 12) {
             // The pointer stands alone: its title is the block right above it.
             const above = blocks
@@ -212,7 +236,12 @@ export function readPage(page: PageText, pageNumber: number): { section: string 
             }
         }
         if (title) {
-            teasers.push({ title, page: Number(teaser[3]) })
+            const dateline = title.length > 80 ? DATELINE.exec(title) : null
+            teasers.push(
+                dateline
+                    ? { title: dateline[1].trim(), text: title.slice(dateline[0].length), page: Number(teaser[2]) }
+                    : { title, text: null, page: Number(teaser[2]) }
+            )
         }
     }
     remaining.push(...blocks.filter((b) => !used.has(b)))
@@ -305,7 +334,7 @@ const FRONT_PAGE = 'Front page'
 /** A whole paper: pages read in order, articles grouped under the section their page belongs to. */
 export function readPaper(pages: PageText[]): Paper {
     const sections: PaperSection[] = []
-    const teasers: { title: string; page: number }[] = []
+    const teasers: Teaser[] = []
     pages.forEach((page, i) => {
         const read = readPage(page, i + 1)
         teasers.push(...read.teasers)
