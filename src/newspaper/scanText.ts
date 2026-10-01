@@ -49,7 +49,7 @@ export async function readScannedPages(
         }
         onProgress?.(doc.numPages, doc.numPages)
     } finally {
-        void task.destroy()
+        await task.destroy()
     }
     return pages
 }

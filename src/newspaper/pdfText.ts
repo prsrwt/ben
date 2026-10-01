@@ -27,7 +27,8 @@ export async function readPdfText(pdfjs: typeof PdfJs, data: Uint8Array | string
             page.cleanup()
         }
     } finally {
-        void task.destroy()
+        // Closed fully before the next reading of the same file starts.
+        await task.destroy()
     }
     return pages
 }
