@@ -1,7 +1,8 @@
 // Reading history: every page the Reader opens successfully, newest first, kept across restarts in
 // localStorage. Only the link, title and time are stored, never the article; reopening downloads it
 // again. A page read again moves to the top rather than appearing twice. Mounted for the whole session,
-// so pages are recorded whether or not the History window is open.
+// so pages are recorded whether or not the History window is open. Newspapers opened from the Library
+// are files, not web pages, so they aren't recorded.
 
 import { MakeLogicType, actions, connect, kea, listeners, path, reducers } from 'kea'
 
@@ -83,7 +84,12 @@ export const historyLogic = kea<historyLogicType>([
         ],
     }),
     listeners(({ actions, values }) => ({
-        pageLoaded: ({ article }) => actions.record(article.url, article.title),
+        // Web pages only: a paper from the Library is a file, opened from the Library again.
+        pageLoaded: ({ article }) => {
+            if (/^https?:/.test(article.url)) {
+                actions.record(article.url, article.title)
+            }
+        },
         record: () => saveEntries(values.entries),
         remove: () => saveEntries(values.entries),
         clear: () => saveEntries(values.entries),

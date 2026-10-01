@@ -302,3 +302,18 @@
         margin-bottom: 1em;
     }
 }
+
+/* A newspaper from the Library (src/newspaper/paperArticle.ts): the small capitals label above a headline
+   ("WESTERN GHATS", "Inside"), the front page's pointers to stories inside, and "Continued on page n". */
+.reader-article .paper-label {
+    margin-bottom: 0.2em;
+    font-size: 0.72em;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ben-text-3);
+}
+
+.reader-article .paper-continues {
+    font-style: italic;
+}

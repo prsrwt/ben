@@ -9,6 +9,8 @@ export interface Article {
     /** The page's final address, after redirects. */
     url: string
     title: string
+    /** What to show above the title instead of the site's name (a paper from the Library: "Newspaper"). */
+    site?: string
     byline: string | null
     /** Sanitised article HTML: no scripts, forms, embeds or inline styles. */
     html: string

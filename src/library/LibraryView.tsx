@@ -1,8 +1,8 @@
 // The Library window. First run: "Where do you keep your study material?" (suggested folders with how many
 // documents each holds, plus any other folder) and the student's name, to spot their own work. After that:
 // subjects down the side, and the chosen subject's files on shelves by kind (notes, slides, question papers…),
-// with "Needs you" first for files Ben couldn't place. Clicking a file opens it (PDFs and photos inside Ben, the
-// rest in their usual program); its kind and subject can be corrected from its menu. Files are only read.
+// with "Needs you" first for files Ben couldn't place. Clicking a file opens it (newspaper PDFs as articles in the
+// Reader, other PDFs and photos inside Ben, the rest in their usual program); its kind and subject can be corrected from its menu. Files are only read.
 
 import { convertFileSrc } from '@tauri-apps/api/core'
 import { homeDir } from '@tauri-apps/api/path'
@@ -13,6 +13,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { cn } from '~/desktop/cn'
 import { ContextMenu, MenuAt, MenuItem } from '~/desktop/ContextMenu'
 import { IS_DESKTOP_APP } from '~/desktop/nativeWindow'
+import { paperUrl } from '~/newspaper/paperFile'
+import { readerLogic } from '~/reader/readerLogic'
 
 import { FileKind, KIND_LABELS } from './classify'
 import { FolderSuggestion, openInProgram, suggestFolders } from './libraryApi'
@@ -42,6 +44,17 @@ const COLLAPSED: FileKind[] = ['personal', 'photo']
 const VIEWABLE = /\.(pdf|jpe?g|png|webp|bmp)$/i
 
 const BUTTON = 'px-3 py-1.5 rounded-lg text-sm font-semibold'
+
+/** A newspaper PDF, read as articles in the Reader. */
+const isPaper = (item: LibraryItem): boolean => item.recognised.kind === 'newspaper' && /\.pdf$/i.test(item.file.name)
+
+/** "The Hindu, 26 September 2026" when the paper and date were recognised, else the file's title. */
+function paperTitle(item: LibraryItem): string {
+    const { paper, date } = item.recognised
+    const day = date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? new Date(`${date}T00:00`) : null
+    const when = day && !isNaN(day.getTime()) ? day.toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' }) : date
+    return paper ? (when ? `${paper}, ${when}` : paper) : item.title
+}
 
 export function LibraryView(): JSX.Element {
     const { loaded, settings } = useValues(libraryLogic)
@@ -164,6 +177,7 @@ function Setup({ onDone }: { onDone?: () => void }): JSX.Element {
 function Shelves(): JSX.Element {
     const { items, subjects, progress, settings } = useValues(libraryLogic)
     const { correct } = useActions(libraryLogic)
+    const { openLinkInNewWindow } = useActions(readerLogic)
     const [subject, setSubject] = useState<string | null>(null)
     const [showFolders, setShowFolders] = useState(false)
     const [viewing, setViewing] = useState<LibraryItem | null>(null)
@@ -186,7 +200,9 @@ function Shelves(): JSX.Element {
     }
 
     const openItem = (item: LibraryItem): void => {
-        if (VIEWABLE.test(item.file.name)) {
+        if (isPaper(item)) {
+            openLinkInNewWindow(paperUrl(item.file.path, paperTitle(item)))
+        } else if (VIEWABLE.test(item.file.name)) {
             setViewing(item)
         } else {
             void openInProgram(item.file.path)
@@ -208,6 +224,7 @@ function Shelves(): JSX.Element {
             y,
             items: [
                 { label: 'Open', choose: () => openItem(item) },
+                ...(isPaper(item) ? [{ label: 'Open the PDF', choose: () => setViewing(item) }] : []),
                 ...(VIEWABLE.test(item.file.name) ? [{ label: 'Open in its program', choose: () => void openInProgram(item.file.path) }] : []),
                 ...subjectItems,
                 ...kinds,
