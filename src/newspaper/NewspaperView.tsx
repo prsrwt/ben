@@ -17,7 +17,7 @@ import '@fontsource/old-standard-tt/700.css'
 import '@fontsource/unifrakturmaguntia/400.css'
 
 import { useActions, useValues } from 'kea'
-import { CSSProperties, ReactNode, useEffect, useRef } from 'react'
+import { CSSProperties, ReactNode, useCallback, useEffect, useLayoutEffect, useRef } from 'react'
 
 import { cn } from '~/desktop/cn'
 import { WindowId, windowsLogic } from '~/desktop/windowsLogic'
@@ -26,7 +26,7 @@ import { BOTTOM_MARGIN, PAGE_GAP, TOP_MARGIN, useBook } from '~/reader/useBook'
 
 import { comfortLogic, textScale } from './comfortLogic'
 import type { Paper, PaperArticle, Teaser } from './layout'
-import { OpenPaper, newspaperLogic } from './newspaperLogic'
+import { OpenPaper, newspaperLogic, paperWindow } from './newspaperLogic'
 import { longDate } from './paperFile'
 import { allStories, continuation, credit, excerpt, readingMinutes, storyOn } from './stories'
 
@@ -40,8 +40,8 @@ function Notice({ title, children }: { title: string; children?: ReactNode }): J
 }
 
 export function NewspaperView({ windowId }: { windowId: WindowId }): JSX.Element {
-    const { open } = useValues(newspaperLogic)
-    const { openPaper } = useActions(newspaperLogic)
+    const { open } = paperWindow(useValues(newspaperLogic).windows, windowId)
+    const { loadPaper } = useActions(newspaperLogic)
 
     if (!open) {
         return (
@@ -69,7 +69,7 @@ export function NewspaperView({ windowId }: { windowId: WindowId }): JSX.Element
                 <p className="text-secondary text-sm m-0 max-w-sm">{open.error}</p>
                 <button
                     type="button"
-                    onClick={() => openPaper(open.file)}
+                    onClick={() => loadPaper(windowId, open.file)}
                     className="mt-3 px-3 py-1 rounded-md text-sm font-semibold text-primary bg-hover hover:bg-[color-mix(in_oklab,currentColor_12%,transparent)]"
                 >
                     Try again
@@ -89,6 +89,22 @@ function useSheetLook(): { className: string; style: CSSProperties } {
     }
 }
 
+/** The sheet's text grows with the window: 1 up to ~1100px wide, then in step with it, to 1.35 (~1500px). Set on
+ *  the sheet as --np-fit, which every size in newspaper.css is multiplied by. */
+function useFit(ref: React.RefObject<HTMLElement>, key: unknown): void {
+    useLayoutEffect(() => {
+        const sheet = ref.current
+        if (!sheet) {
+            return
+        }
+        const fit = (): void => sheet.style.setProperty('--np-fit', String(Math.min(1.35, Math.max(1, sheet.clientWidth / 1100))))
+        fit()
+        const observer = new ResizeObserver(fit)
+        observer.observe(sheet)
+        return () => observer.disconnect()
+    }, [ref, key])
+}
+
 /** "Saurabh Trivedi · New Delhi · 4 min read". */
 const creditLine = (stories: PaperArticle[], story: PaperArticle): string =>
     [credit(story), `${readingMinutes(stories, story)} min read`].filter(Boolean).join(' · ')
@@ -97,15 +113,23 @@ const creditLine = (stories: PaperArticle[], story: PaperArticle): string =>
 const inRows = <T,>(items: T[]): T[][] => Array.from({ length: Math.ceil(items.length / 3) }, (_, i) => items.slice(i * 3, i * 3 + 3))
 
 function Broadsheet({ open, windowId }: { open: OpenPaper; windowId: WindowId }): JSX.Element {
-    const { section, reading } = useValues(newspaperLogic)
-    const { showSection, openStory, readStory } = useActions(newspaperLogic)
+    const { section, reading } = paperWindow(useValues(newspaperLogic).windows, windowId)
+    const actions = useActions(newspaperLogic)
+    // This window's section and story.
+    const showSection = useCallback((n: number) => actions.showSection(windowId, n), [actions, windowId])
+    const openStory = useCallback((n: number | null) => actions.openStory(windowId, n), [actions, windowId])
     const { focusedId } = useValues(windowsLogic)
     const sheetRef = useRef<HTMLDivElement>(null)
     const look = useSheetLook()
+    useFit(sheetRef, reading)
     const paper = open.paper!
     const stories = allStories(paper)
     const current = paper.sections[Math.min(section, paper.sections.length - 1)]
-    const [lead, ...rest] = current.articles
+    // The lead: the longest story on the section's first page (an advert's big slogan has little text under it).
+    const firstPage = Math.min(...current.articles.map((a) => a.page))
+    const textLength = (a: PaperArticle): number => a.paragraphs.join(' ').length
+    const lead = current.articles.filter((a) => a.page === firstPage).reduce((best, a) => (textLength(a) > textLength(best) ? a : best))
+    const rest = current.articles.filter((a) => a !== lead)
     const briefs = section === 0 ? paper.teasers : []
     const isFront = focusedId === windowId
     const first = Math.min(...current.articles.map((a) => a.page))
@@ -150,8 +174,9 @@ function Broadsheet({ open, windowId }: { open: OpenPaper; windowId: WindowId })
         return registerBook(windowId, {
             contents: (): ContentsEntry[] =>
                 paper.sections.flatMap((s, i) => [
-                    { title: s.name, depth: 0, page: Math.min(...s.articles.map((a) => a.page)) - 1, current: i === section },
-                    ...s.articles.map((a) => ({ title: a.title, depth: 1, page: a.page - 1, current: false })),
+                    // The section showing is current, or, while a story is open, that story.
+                    { title: s.name, depth: 0, page: Math.min(...s.articles.map((a) => a.page)) - 1, current: reading === null && i === section },
+                    ...s.articles.map((a) => ({ title: a.title, depth: 1, page: a.page - 1, current: reading !== null && stories[reading] === a })),
                 ]),
             goTo: (index) => {
                 const place = places[index]
@@ -159,19 +184,18 @@ function Broadsheet({ open, windowId }: { open: OpenPaper; windowId: WindowId })
                     return
                 }
                 returnRef.current = null
-                if (reading !== null && place.section === section) {
-                    // From a story's sheet: back to the page, at the chosen place.
-                    targetRef.current = place.story
-                    openStory(null)
-                } else if (place.section === section) {
-                    if (place.story === null) {
-                        body()?.scrollTo({ top: 0 })
-                    } else {
-                        showStory(place.story)
+                if (place.story !== null) {
+                    // A story opens straight on its sheet; closing it returns to it on its section's page.
+                    if (place.section !== section) {
+                        showSection(place.section)
                     }
-                } else {
-                    targetRef.current = place.story
+                    openStory(place.story)
+                } else if (place.section !== section) {
                     showSection(place.section)
+                } else if (reading !== null) {
+                    openStory(null)
+                } else {
+                    body()?.scrollTo({ top: 0 })
                 }
             },
         })
@@ -208,10 +232,16 @@ function Broadsheet({ open, windowId }: { open: OpenPaper; windowId: WindowId })
      *  section's page at the story. */
     const back = (): void => {
         const storySection = reading === null ? section : sectionOfStory(reading)
-        if (reading !== null && storySection !== section) {
+        // Opened from Contents (no place on the page to return to), or read on into another section: back to the
+        // story itself on its section's page.
+        if (reading !== null && (storySection !== section || returnRef.current === null)) {
             targetRef.current = reading
             returnRef.current = null
-            showSection(storySection)
+            if (storySection !== section) {
+                showSection(storySection)
+            } else {
+                openStory(null)
+            }
         } else {
             openStory(null)
         }
@@ -235,7 +265,6 @@ function Broadsheet({ open, windowId }: { open: OpenPaper; windowId: WindowId })
                     date={longDate(open.file.date)}
                     isFront={isFront}
                     onGo={(story) => (story === null ? back() : openStory(story))}
-                    onReader={readStory}
                 />
             </div>
         )
@@ -311,7 +340,8 @@ function Broadsheet({ open, windowId }: { open: OpenPaper; windowId: WindowId })
                     {lead.deck && <p className="np-deck">{lead.deck}</p>}
                     <p className="np-credit">{creditLine(stories, lead)}</p>
                     <div className="np-text np-text--3">
-                        {excerpt(lead, 1400)
+                        {/* Longer beside a long "In brief", so the lead fills its side of the page. */}
+                        {excerpt(lead, Math.min(3200, 1400 + Math.max(0, (section === 0 ? paper.teasers.length : rest.length) - 4) * 220))
                             .split(/(?<=[.!?][”"’)]?)\s+(?=\S)/)
                             .reduce<string[]>((paragraphs, sentence) => {
                                 // Paragraphs of a few sentences, as the paper's own column text.
@@ -414,6 +444,49 @@ const EndMark = (): JSX.Element => (
     </span>
 )
 
+/** The story before or after, in the margin beside the first or last page where the page arrow would be: a round
+ *  arrow; in a wide margin, what it is ("Next story", "Next section · Sport") and its headline under it; in a narrow
+ *  one, both on a card that slides out over the page edge under the pointer. */
+function StoryStep({
+    side,
+    story,
+    label,
+    width,
+    onClick,
+}: {
+    side: 'back' | 'next'
+    story: PaperArticle
+    label: string
+    width: number
+    onClick: () => void
+}): JSX.Element {
+    const roomy = width >= 190
+    return (
+        <button
+            type="button"
+            className={cn('np-step', side === 'next' ? 'np-step--next' : 'np-step--back')}
+            style={side === 'next' ? { right: 0, width } : { left: 0, width }}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={onClick}
+            aria-label={`${label}: ${story.title}`}
+        >
+            <span className="np-step__arrow" aria-hidden>
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                    <path d={side === 'next' ? 'M6 3.5 10.5 8 6 12.5' : 'M10 3.5 5.5 8l4.5 4.5'} />
+                </svg>
+            </span>
+            {roomy && <span className="np-step__label">{label}</span>}
+            {roomy && <span className="np-step__title">{story.title}</span>}
+            {!roomy && (
+                <span className="np-step__peek" aria-hidden>
+                    <span className="np-step__label">{label}</span>
+                    <span className="np-step__title">{story.title}</span>
+                </span>
+            )}
+        </button>
+    )
+}
+
 /** Keys that turn a story's pages, unless focus is somewhere they mean something else (a field, a menu). */
 function turnDirection(event: KeyboardEvent): 1 | -1 | null {
     if (event.altKey || event.ctrlKey || event.metaKey) {
@@ -443,7 +516,6 @@ function StorySheet({
     date,
     isFront,
     onGo,
-    onReader,
 }: {
     paper: Paper
     index: number
@@ -451,7 +523,6 @@ function StorySheet({
     date: string | null
     isFront: boolean
     onGo: (story: number | null) => void
-    onReader: (story: number) => void
 }): JSX.Element {
     const { comfort } = useValues(comfortLogic)
     const stories = allStories(paper)
@@ -538,26 +609,36 @@ function StorySheet({
             <div ref={bookRef} className="np-book reader-book">
                 {layout && (
                     <>
-                        <button
-                            type="button"
-                            tabIndex={-1}
-                            aria-label={page === 0 ? 'Story before' : 'Previous page'}
-                            className="reader-book__edge reader-book__edge--back absolute inset-y-0 left-0"
-                            style={{ width: layout.left }}
-                            onMouseDown={(e) => e.preventDefault()}
-                            onClick={() => step(-1)}
-                            disabled={page === 0 && !before}
-                        />
-                        <button
-                            type="button"
-                            tabIndex={-1}
-                            aria-label={atEnd ? 'Next story' : 'Next page'}
-                            className="reader-book__edge reader-book__edge--next absolute inset-y-0 right-0"
-                            style={{ left: layout.left + layout.spreadWidth }}
-                            onMouseDown={(e) => e.preventDefault()}
-                            onClick={() => step(1)}
-                            disabled={atEnd && !after}
-                        />
+                        {/* The margins turn pages; at the first page the left one is the story before, at the last
+                            the right one is the next story, named. */}
+                        {page === 0 && before ? (
+                            <StoryStep side="back" story={before} label={beforeSection !== section ? `Previous section · ${beforeSection}` : 'Previous story'} width={layout.left} onClick={() => step(-1)} />
+                        ) : (
+                            <button
+                                type="button"
+                                tabIndex={-1}
+                                aria-label="Previous page"
+                                className="reader-book__edge reader-book__edge--back absolute inset-y-0 left-0"
+                                style={{ width: layout.left }}
+                                onMouseDown={(e) => e.preventDefault()}
+                                onClick={() => step(-1)}
+                                disabled={page === 0}
+                            />
+                        )}
+                        {atEnd && after ? (
+                            <StoryStep side="next" story={after} label={afterSection !== section ? `Next section · ${afterSection}` : 'Next story'} width={layout.left} onClick={() => step(1)} />
+                        ) : (
+                            <button
+                                type="button"
+                                tabIndex={-1}
+                                aria-label="Next page"
+                                className="reader-book__edge reader-book__edge--next absolute inset-y-0 right-0"
+                                style={{ left: layout.left + layout.spreadWidth }}
+                                onMouseDown={(e) => e.preventDefault()}
+                                onClick={() => step(1)}
+                                disabled={atEnd}
+                            />
+                        )}
                     </>
                 )}
                 <div
@@ -621,39 +702,14 @@ function StorySheet({
                     ))}
             </div>
 
-            {/* Always in view: the story before and after (named, with their section when it changes), where you
-                are, and the Reader. */}
-            <nav className="np-read-nav" aria-label="Stories">
-                {before ? (
-                    <button type="button" className="np-foot-step" onClick={() => onGo(index - 1)} title="Story before (← on the first page)">
-                        <span>{beforeSection !== section ? `‹ Previous section: ${beforeSection}` : '‹ Previous story'}</span>
-                        {before.title}
-                    </button>
-                ) : (
-                    <span />
-                )}
-                <div className="np-read-where">
-                    <span>
-                        {layout && pageCount > 1
-                            ? `Page ${page + 1}${layout.perSpread === 2 && page + 2 <= pageCount ? `–${page + 2}` : ''} of ${pageCount}`
-                            : 'One page'}
-                        {' · '}Story {inSection + 1} of {sectionStories} in {section}
-                    </span>
-                    <button type="button" className="np-turn" onClick={() => onReader(index)}>
-                        Open in Reader
-                    </button>
-                </div>
-                {after ? (
-                    <button type="button" className="np-foot-step np-foot-step--next" onClick={() => onGo(index + 1)} title="Next story (→ on the last page)">
-                        <span>{afterSection !== section ? `Next section: ${afterSection} ›` : 'Next story ›'}</span>
-                        {after.title}
-                    </button>
-                ) : (
-                    <span className="np-foot-step np-foot-step--next">
-                        <span>The end of the paper</span>
-                    </span>
-                )}
-            </nav>
+            {/* Where you are: the pages of this story, and the story among its section's. */}
+            <div className="np-read-nav">
+                {layout && pageCount > 1
+                    ? `Page ${page + 1}${layout.perSpread === 2 && page + 2 <= pageCount ? `–${page + 2}` : ''} of ${pageCount}`
+                    : 'One page'}
+                {' · '}Story {inSection + 1} of {sectionStories} in {section}
+                {!after && atEnd ? ' · The end of the paper' : ''}
+            </div>
         </>
     )
 }

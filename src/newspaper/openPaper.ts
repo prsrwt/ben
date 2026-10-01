@@ -1,29 +1,39 @@
 // Reads a newspaper PDF from the Library into sections and stories (layout.ts). Imported only when a paper is
 // opened, so PDF.js (and its worker, a separate file) cost nothing until then. A scanned paper (or one whose fonts
-// give scrambled letters) is read page by page with Windows' text recognition (scanText.ts). The last few papers
-// read are kept, so opening one of their stories in the Reader doesn't read the PDF again.
+// give scrambled letters) is read page by page with Windows' text recognition (scanText.ts); a Hindi paper set in the
+// old Kruti Dev font is turned into real Hindi (krutiDev.ts). The last few papers read are kept, so opening one of
+// their stories in the Reader doesn't read the PDF again.
 
 import { convertFileSrc } from '@tauri-apps/api/core'
 // PDF.js's "legacy" build: the same code with fallbacks for features newer than some WebView2 versions have
-// (drawing a page uses Map.getOrInsertComputed, which the modern build expects the browser to have).
+// (drawing a page uses Map.getOrInsertComputed, which the modern build expects the browser to have). Its worker
+// is built by Vite (?worker), so it takes Ben's word-space setting (vite.config.ts).
 import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs'
-import workerUrl from 'pdfjs-dist/legacy/build/pdf.worker.min.mjs?url'
+import PdfWorker from 'pdfjs-dist/legacy/build/pdf.worker.mjs?worker'
 
 import type { Article } from '~/reader/extractArticle'
 
-import { Paper, isReadable, readPaper } from './layout'
+import { krutiToUnicode, looksLikeHindi } from './krutiDev'
+import { PageText, Paper, isReadable, readPaper } from './layout'
 import { paperFile } from './paperFile'
 import { readPdfText } from './pdfText'
 import { readScannedPages } from './scanText'
 import { storyArticle } from './stories'
 
-pdfjs.GlobalWorkerOptions.workerSrc = workerUrl
+pdfjs.GlobalWorkerOptions.workerPort = new PdfWorker()
 
 /** Papers read, by path; the oldest is forgotten beyond this many. */
 const KEPT = 3
 const papers = new Map<string, Promise<{ paper: Paper; pages: number }>>()
 
 export type Progress = (done: number, total: number) => void
+
+/** The words of a paper's first pages, to judge them by. */
+const allText = (pages: PageText[]): string =>
+    pages
+        .slice(0, 4)
+        .flatMap((p) => p.items.map((i) => i.str))
+        .join(' ')
 
 /** Papers printed in Hindi (as the Library names them): their text must be Devanagari, and a scan is read as Hindi. */
 const HINDI_PAPERS = new Set(['Dainik Jagran', 'Amar Ujala', 'Dainik Bhaskar', 'Navbharat Times', 'Hindustan', 'Jansatta', 'Rajasthan Patrika', 'Prabhat Khabar'])
@@ -43,6 +53,17 @@ async function read(path: string, hindi: boolean, onProgress?: Progress): Promis
     }
     // PDF.js takes over the bytes it's given, so the first reading gets a copy.
     let pages = await readPdfText(pdfjs, bytes.slice())
+    if (hindi && !isReadable(pages, { devanagari: true }) && isReadable(pages)) {
+        // Text, but not Hindi letters: a Hindi paper set in an old font. Kruti Dev's is the common one.
+        const converted = pages.map((page) => ({ ...page, items: page.items.map((item) => ({ ...item, str: krutiToUnicode(item.str) })) }))
+        if (isReadable(converted, { devanagari: true }) && looksLikeHindi(allText(converted))) {
+            pages = converted
+        } else {
+            throw new Error(
+                "This Hindi paper is set in an old font Ben doesn't know yet, so its words come out scrambled. Open it from the Library to see the PDF."
+            )
+        }
+    }
     if (!isReadable(pages, { devanagari: hindi })) {
         pages = await readScannedPages(pdfjs, bytes, onProgress, hindi ? 'hi' : undefined)
         if (!isReadable(pages, { devanagari: hindi })) {

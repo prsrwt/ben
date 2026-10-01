@@ -9,10 +9,10 @@ import { ContentsButton } from '~/reader/ContentsMenu'
 
 import { ComfortButton } from './ComfortMenu'
 
-import { newspaperLogic } from './newspaperLogic'
+import { newspaperLogic, paperWindow } from './newspaperLogic'
 
 export function NewspaperIslandOptions({ windowId }: { windowId: WindowId }): JSX.Element {
-    const { open } = useValues(newspaperLogic)
+    const { open } = paperWindow(useValues(newspaperLogic).windows, windowId)
     return (
         <div className="flex items-center gap-1.5" role="group" aria-label="Newspaper">
             <ContentsButton windowId={windowId} enabled={open?.status === 'ready'} />
