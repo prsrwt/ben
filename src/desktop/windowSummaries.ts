@@ -3,6 +3,7 @@
 
 import { useValues } from 'kea'
 
+import { isPaperUrl, paperFile } from '~/newspaper/paperFile'
 import { readerLogic, readerWindowState } from '~/reader/readerLogic'
 
 import { APPS, AppId } from './apps'
@@ -19,7 +20,9 @@ export interface WindowSummary {
     minimized: boolean
 }
 
-export const hostOf = (url: string): string => new URL(url).hostname.replace(/^www\./, '')
+/** A web page's site ("en.wikipedia.org"), or a paper's title for a newspaper opened from the Library. */
+export const hostOf = (url: string): string =>
+    isPaperUrl(url) ? paperFile(url).title : new URL(url).hostname.replace(/^www\./, '')
 
 export function useWindowSummaries(): WindowSummary[] {
     const { windows } = useValues(windowsLogic)

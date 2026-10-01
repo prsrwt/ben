@@ -61,11 +61,6 @@ interface Block {
     text: string
 }
 
-const median = (values: number[]): number => {
-    const sorted = [...values].sort((a, b) => a - b)
-    return sorted[Math.floor(sorted.length / 2)] ?? 0
-}
-
 /** Column gutters: the vertical strips of a page that body text never covers. Text is never joined across one,
  *  however wide the word spacing of justified text gets. */
 function findGutters(items: TextItem[], width: number, body: number): (from: number, to: number) => boolean {
@@ -170,7 +165,7 @@ const TEASER = /^(.*?)\s*(news|world|business|sport|sports|opinion|editorial|cit
 
 /** Words in a page's running head that aren't the section: the paper's name, days, months, dates, page numbers. */
 const RUNNING_HEAD =
-    /(THE HINDU|HINDU|INDIAN EXPRESS|EXPRESS|MINT|BUSINESS LINE|BUSINESSLINE|TIMES OF INDIA|HINDUSTAN TIMES|(MON|TUES|WEDNES|THURS|FRI|SATUR|SUN)DAY|JANUARY|FEBRUARY|MARCH|APRIL|MAY|JUNE|JULY|AUGUST|SEPTEMBER|OCTOBER|NOVEMBER|DECEMBER|\d+)/gi
+    /\b(THE HINDU|HINDU|INDIAN EXPRESS|EXPRESS|MINT|BUSINESS LINE|BUSINESSLINE|TIMES OF INDIA|HINDUSTAN TIMES|(MON|TUES|WEDNES|THURS|FRI|SATUR|SUN)DAY|JANUARY|FEBRUARY|MARCH|APRIL|MAY|JUNE|JULY|AUGUST|SEPTEMBER|OCTOBER|NOVEMBER|DECEMBER|\d+)\b/gi
 
 /** "» PAGE 4" at the end of a line: a teaser's pointer, or a story continuing on that page. */
 const POINTER = /»\s*page\s*(\d+)\s*$/i
@@ -305,6 +300,8 @@ function splitParagraphs(text: string): string[] {
     return paragraphs
 }
 
+const FRONT_PAGE = 'Front page'
+
 /** A whole paper: pages read in order, articles grouped under the section their page belongs to. */
 export function readPaper(pages: PageText[]): Paper {
     const sections: PaperSection[] = []
@@ -312,8 +309,9 @@ export function readPaper(pages: PageText[]): Paper {
     pages.forEach((page, i) => {
         const read = readPage(page, i + 1)
         teasers.push(...read.teasers)
-        const name = i === 0 ? 'Front page' : titleCase(read.section ?? sections.at(-1)?.name ?? 'Inside')
+        // An inner page without a section name of its own belongs to the inner section before it.
         const last = sections.at(-1)
+        const name = i === 0 ? FRONT_PAGE : read.section ? titleCase(read.section) : last && last.name !== FRONT_PAGE ? last.name : 'Inside'
         if (last && last.name === name) {
             last.articles.push(...read.articles)
         } else {

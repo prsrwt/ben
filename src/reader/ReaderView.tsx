@@ -12,14 +12,14 @@ import { ReactNode, useCallback, useEffect, useRef, useState } from 'react'
 
 import { cn } from '~/desktop/cn'
 import { ContextMenu, MenuAt, MenuItem } from '~/desktop/ContextMenu'
+import { hostOf } from '~/desktop/windowSummaries'
 import { WindowId, windowsLogic } from '~/desktop/windowsLogic'
+import { isPaperUrl } from '~/newspaper/paperFile'
 
 import { Article, toArticleUrl } from './fetchArticle'
 import { ContentsEntry, openBook, registerBook, setCurrentSection } from './openBooks'
 import { readerLogic, readerWindowState } from './readerLogic'
 import { BOTTOM_MARGIN, PAGE_GAP, TOP_MARGIN, useBook } from './useBook'
-
-const hostOf = (url: string): string => new URL(url).hostname.replace(/^www\./, '')
 
 /** Where each article was being read (a block index, see useBook), by page id, so back and forward
  *  return to the same passage. */
@@ -58,7 +58,7 @@ function ReaderPageView({ windowId }: { windowId: WindowId }): JSX.Element {
         return (
             <Notice title="Couldn't open this page">
                 <p className="text-secondary text-sm m-0 max-w-sm">{current.error}</p>
-                <p className="text-tertiary text-xs m-0 max-w-sm break-all">{current.url}</p>
+                {!isPaperUrl(current.url) && <p className="text-tertiary text-xs m-0 max-w-sm break-all">{current.url}</p>}
                 <button
                     type="button"
                     onClick={() => reload(windowId)}
@@ -265,7 +265,9 @@ function ArticleBook({ pageId, article, windowId }: { pageId: number; article: A
             { label: 'Next page', hint: '→', disabled: lastSpread, choose: () => turn(1) },
             { label: 'Back', hint: 'Alt+←', divider: true, disabled: !canGoBack, choose: () => back(windowId) },
             { label: 'Forward', hint: 'Alt+→', disabled: !canGoForward, choose: () => forward(windowId) },
-            { label: 'Copy page link', divider: true, choose: () => void navigator.clipboard.writeText(article.url) }
+            ...(isPaperUrl(article.url)
+                ? []
+                : [{ label: 'Copy page link', divider: true, choose: () => void navigator.clipboard.writeText(article.url) }])
         )
         setMenu({ x: e.clientX, y: e.clientY, items })
     }
@@ -343,7 +345,7 @@ function ArticleBook({ pageId, article, windowId }: { pageId: number; article: A
                     onMouseDown={onMouseDown}
                 >
                     <header className="reader-article__header">
-                        <p className="reader-article__site">{hostOf(article.url)}</p>
+                        <p className="reader-article__site">{article.site ?? hostOf(article.url)}</p>
                         <h1>{article.title}</h1>
                         {article.byline && <p className="reader-article__byline">{article.byline}</p>}
                     </header>

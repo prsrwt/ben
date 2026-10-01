@@ -5,6 +5,7 @@
 import { MakeLogicType, actions, connect, kea, listeners, path, reducers } from 'kea'
 
 import { WindowId, newWindowId, windowsLogic, windowsLogicActions } from '~/desktop/windowsLogic'
+import { isPaperUrl } from '~/newspaper/paperFile'
 
 import { Article, fetchArticle } from './fetchArticle'
 
@@ -30,6 +31,10 @@ const MAX_HISTORY = 30
 const EMPTY_HISTORY: ReaderHistory = { pages: [], index: -1 }
 
 let nextPageId = 1
+
+/** A web page, or a newspaper PDF from the Library (PDF.js is loaded only then). */
+const loadArticle = async (url: string): Promise<Article> =>
+    isPaperUrl(url) ? (await import('~/newspaper/openPaper')).openPaper(url) : fetchArticle(url)
 
 const newPage = (url: string): ReaderPage => ({ id: nextPageId++, url, status: 'loading', article: null, error: null })
 
@@ -134,7 +139,7 @@ export const readerLogic = kea<readerLogicType>([
     listeners(({ actions, values }) => {
         const load = async (windowId: WindowId, page: ReaderPage): Promise<void> => {
             try {
-                actions.pageLoaded(windowId, page.id, await fetchArticle(page.url))
+                actions.pageLoaded(windowId, page.id, await loadArticle(page.url))
             } catch (e) {
                 actions.pageFailed(windowId, page.id, e instanceof Error ? e.message : String(e))
             }
