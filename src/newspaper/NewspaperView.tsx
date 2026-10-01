@@ -2,7 +2,8 @@
 // as a blackletter masthead, the date between rules, the section's first story as the lead across four columns,
 // "In brief" beside it on the front page (pointers and briefs, each leading to its story), the rest of the
 // section's stories below, and the sections along the foot. A story opens in the Reader to be read in full.
-// ← and → (or the foot) move between sections.
+// ← and → (or the foot) move between sections. Its index (sections and their stories) is the Contents pill on Ben
+// Island, as for a book in the Reader. A story under the pointer comes forward, its words a little larger.
 
 import './newspaper.css'
 // Old Standard TT (headlines) and UnifrakturMaguntia (the masthead), SIL Open Font Licence. The browser downloads
@@ -17,6 +18,7 @@ import { ReactNode, useEffect, useRef } from 'react'
 
 import { cn } from '~/desktop/cn'
 import { WindowId, windowsLogic } from '~/desktop/windowsLogic'
+import { ContentsEntry, registerBook, setCurrentSection } from '~/reader/openBooks'
 
 import type { PaperArticle, Teaser } from './layout'
 import { OpenPaper, newspaperLogic } from './newspaperLogic'
@@ -91,10 +93,58 @@ function Broadsheet({ open, windowId }: { open: OpenPaper; windowId: WindowId })
     const last = Math.max(...current.articles.map((a) => a.page))
     const printedPages = first === last ? `Page ${first}` : `Pages ${first}–${last}`
 
-    // Each section starts at the top of its page.
+    /** A story chosen from Contents, to scroll to once its section shows. */
+    const targetRef = useRef<number | null>(null)
+    const showStory = (index: number): void => {
+        const story = sheetRef.current?.querySelector<HTMLElement>(`[data-story="${index}"]`)
+        if (story) {
+            story.scrollIntoView({ block: 'start' })
+            // A brief glow, so the eye finds it.
+            story.classList.remove('np-found')
+            void story.offsetWidth
+            story.classList.add('np-found')
+        }
+    }
+
+    // Each section starts at the top of its page, or at the story chosen from Contents.
     useEffect(() => {
-        sheetRef.current?.closest('.desktop-window__body')?.scrollTo({ top: 0 })
+        if (targetRef.current !== null) {
+            showStory(targetRef.current)
+            targetRef.current = null
+        } else {
+            sheetRef.current?.closest('.desktop-window__body')?.scrollTo({ top: 0 })
+        }
     }, [section])
+
+    // The index on Ben Island: each section, then its stories, with the printed page each starts on.
+    useEffect(() => {
+        const places = paper.sections.flatMap((s, i) => [{ section: i, story: null as number | null }, ...s.articles.map((a) => ({ section: i, story: stories.indexOf(a) }))])
+        return registerBook(windowId, {
+            contents: (): ContentsEntry[] =>
+                paper.sections.flatMap((s, i) => [
+                    { title: s.name, depth: 0, page: Math.min(...s.articles.map((a) => a.page)) - 1, current: i === section },
+                    ...s.articles.map((a) => ({ title: a.title, depth: 1, page: a.page - 1, current: false })),
+                ]),
+            goTo: (index) => {
+                const place = places[index]
+                if (!place) {
+                    return
+                }
+                if (place.section === section) {
+                    if (place.story === null) {
+                        sheetRef.current?.closest('.desktop-window__body')?.scrollTo({ top: 0 })
+                    } else {
+                        showStory(place.story)
+                    }
+                } else {
+                    targetRef.current = place.story
+                    showSection(place.section)
+                }
+            },
+        })
+    })
+    useEffect(() => setCurrentSection(windowId, current.name), [windowId, current.name])
+    useEffect(() => () => setCurrentSection(windowId, null), [windowId])
 
     // ← and → move between sections in the Newspaper window in front (not while typing or in a menu).
     useEffect(() => {
@@ -165,7 +215,7 @@ function Broadsheet({ open, windowId }: { open: OpenPaper; windowId: WindowId })
             </div>
 
             <div className="np-grid">
-                <article className={cn('np-col', briefs.length > 0 || rest.length > 0 ? 'np-span4' : 'np-span6')}>
+                <article data-story={stories.indexOf(lead)} className={cn('np-col np-story', briefs.length > 0 || rest.length > 0 ? 'np-span4' : 'np-span6')}>
                     {lead.kicker && <p className="np-kicker">{lead.kicker}</p>}
                     {headline(lead, 'np-lead', 'h1')}
                     <div className="np-text np-text--3">
@@ -183,7 +233,7 @@ function Broadsheet({ open, windowId }: { open: OpenPaper; windowId: WindowId })
                     </div>
                 </article>
                 {briefs.length > 0 ? (
-                    <aside className="np-col np-span2">
+                    <aside className="np-col np-story np-span2">
                         <h2 className="np-side-title">In brief</h2>
                         {briefs.map((teaser, i) => {
                             const go = follow(teaser)
@@ -204,7 +254,7 @@ function Broadsheet({ open, windowId }: { open: OpenPaper; windowId: WindowId })
                     </aside>
                 ) : (
                     rest.length > 0 && (
-                        <aside className="np-col np-span2">
+                        <aside className="np-col np-story np-span2">
                             <h2 className="np-side-title">In this section</h2>
                             {rest.slice(0, 10).map((story) => (
                                 <p key={stories.indexOf(story)} className="np-brief">
@@ -222,7 +272,7 @@ function Broadsheet({ open, windowId }: { open: OpenPaper; windowId: WindowId })
             {inRows(rest).map((row, r) => (
                 <div key={r} className="np-grid np-row">
                     {row.map((story) => (
-                        <article key={stories.indexOf(story)} className="np-col np-span2">
+                        <article key={stories.indexOf(story)} data-story={stories.indexOf(story)} className="np-col np-story np-span2">
                             {story.kicker && <p className="np-kicker">{story.kicker}</p>}
                             {headline(story, 'np-headline')}
                             <div className="np-text">

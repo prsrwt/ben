@@ -189,6 +189,10 @@ const NOT_TEXT = /[\uE000-\uF8FF\uFFFD]|\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0
 const RUNNING_HEAD =
     /\b(THE HINDU|HINDU|INDIAN EXPRESS|EXPRESS|MINT|BUSINESS LINE|BUSINESSLINE|TIMES OF INDIA|HINDUSTAN TIMES|(MON|TUES|WEDNES|THURS|FRI|SATUR|SUN)DAY|JANUARY|FEBRUARY|MARCH|APRIL|MAY|JUNE|JULY|AUGUST|SEPTEMBER|OCTOBER|NOVEMBER|DECEMBER|\d+)\b/gi
 
+/** A marker some papers print before a story's first word, which comes out of the PDF as a stray letter or symbol
+ *  ("X In-form striker…", "■ The…"): a lone capital other than A, I or O, or anything that isn't a letter. */
+const LEAD_MARK = /^(?:[^\p{L}\p{N}"“‘'(]+|[B-HJ-NP-Z](?=\s+\p{Lu}))\s*/u
+
 /** "» PAGE 4" (or "PAGE 4" after an icon, in capitals) at the end of a line: a teaser's pointer, or a story
  *  continuing on that page. */
 const POINTER = /(?:»\s*[Pp][Aa][Gg][Ee]|\bPAGE)\s*(\d{1,2})\s*$/
@@ -279,7 +283,8 @@ export function readPage(page: PageText, pageNumber: number): { section: string 
                 return p.text.replace(POINTER, '').trim()
             })
             .join(' ')
-        if (text.length < 120) {
+        const clean = text.replace(LEAD_MARK, '')
+        if (clean.length < 120) {
             continue
         }
         // A kicker: a short all-capitals label right above the headline.
@@ -289,7 +294,7 @@ export function readPage(page: PageText, pageNumber: number): { section: string 
         articles.push({
             title: h.text,
             kicker: kickerBlock?.text ?? null,
-            paragraphs: splitParagraphs(text),
+            paragraphs: splitParagraphs(clean),
             page: pageNumber,
             continuesOn,
         })

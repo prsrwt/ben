@@ -225,6 +225,67 @@
     font-weight: 700;
 }
 
+/* Easier on the eyes: the story under the pointer comes forward, a sheet of its own lifted off the page with its
+   words a little larger, after a moment's pause so passing over the page doesn't set everything moving. Transform
+   only, so the text stays crisp and nothing else on the page moves. */
+/* Its corners round, and its column rule gives way, only while it's lifted: at rest the rules stay straight. */
+.np-story {
+    position: relative;
+    scroll-margin-top: 52px;
+    transition:
+        transform 220ms ease,
+        box-shadow 220ms ease,
+        background-color 220ms ease;
+
+    &:hover {
+        z-index: 1;
+        border-radius: 10px;
+        border-left-color: transparent;
+        transform: scale(1.06);
+        background-color: var(--np-paper);
+        box-shadow:
+            0 0 0 10px var(--np-paper),
+            0 18px 40px -8px rgb(0 0 0 / 0.28);
+        transition-delay: 120ms;
+    }
+}
+
+/* On dark newsprint a shadow hardly shows, so the lifted story is also on slightly lighter paper. */
+[theme='dark'] .np-story:hover {
+    --np-lifted: color-mix(in oklab, var(--np-ink) 7%, var(--np-paper));
+
+    background-color: var(--np-lifted);
+    box-shadow:
+        0 0 0 10px var(--np-lifted),
+        0 18px 40px -8px rgb(0 0 0 / 0.6);
+}
+
+/* The lead is already large: it comes forward a little less. */
+.np-story.np-span4:hover,
+.np-story.np-span6:hover {
+    transform: scale(1.035);
+}
+
+/* A story chosen from Contents glows for a moment. */
+.np-found {
+    border-radius: 10px;
+    animation: np-found 1.6s ease-out;
+}
+
+@keyframes np-found {
+    from {
+        background-color: color-mix(in oklab, var(--np-ink) 12%, var(--np-paper));
+        box-shadow: 0 0 0 10px color-mix(in oklab, var(--np-ink) 12%, var(--np-paper));
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .np-story,
+    .np-story:hover {
+        transition: none;
+    }
+}
+
 /* A narrow window (side by side): ears and the lead's three columns fold away, stories stack. */
 @container (max-width: 720px) {
     .np-top {
