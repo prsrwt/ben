@@ -1,6 +1,8 @@
-// The Newspaper window's paper: which one is open, its sections and stories once read, and the section showing.
+// The Newspaper window's paper: which one is open, its sections and stories once read, the section showing, and
+// the story being read on its own sheet, if any.
 // Opening a paper from the Library brings the Newspaper window forward and reads the PDF there (layout code and
-// PDF.js load only then). A story opens in the Reader: the Reader window already showing a story from a paper
+// PDF.js load only then). A story opens on its own sheet in the Newspaper window; "Open in Reader" opens it in the
+// Reader: the Reader window already showing a story from a paper
 // if there is one (so back and forward step through the stories read), else a new one.
 
 import { MakeLogicType, actions, connect, kea, listeners, path, reducers } from 'kea'
@@ -26,6 +28,8 @@ export interface newspaperLogicValues {
     open: OpenPaper | null
     /** The section showing, by its place in the paper (0 is the front page). */
     section: number
+    /** The story being read on its own sheet, by its number in the paper; null for the broadsheet. */
+    reading: number | null
 }
 
 export interface newspaperLogicActions {
@@ -34,6 +38,8 @@ export interface newspaperLogicActions {
     paperFailed: (path: string, error: string) => { path: string; error: string }
     paperProgress: (path: string, done: number, total: number) => { path: string; done: number; total: number }
     showSection: (section: number) => { section: number }
+    /** Opens a story (by its number in the paper) on its own sheet, or goes back to the broadsheet (null). */
+    openStory: (story: number | null) => { story: number | null }
     /** Opens a story (by its number in the paper) in the Reader. */
     readStory: (story: number) => { story: number }
     openApp: windowsLogicActions['openApp']
@@ -55,6 +61,7 @@ export const newspaperLogic = kea<newspaperLogicType>([
         paperFailed: (path: string, error: string) => ({ path, error }),
         paperProgress: (path: string, done: number, total: number) => ({ path, done, total }),
         showSection: (section: number) => ({ section }),
+        openStory: (story: number | null) => ({ story }),
         readStory: (story: number) => ({ story }),
     }),
     reducers({
@@ -71,6 +78,7 @@ export const newspaperLogic = kea<newspaperLogicType>([
             },
         ],
         section: [0, { openPaper: () => 0, showSection: (_, { section }) => section }],
+        reading: [null as number | null, { openPaper: () => null, showSection: () => null, openStory: (_, { story }) => story }],
     }),
     listeners(({ actions, values }) => ({
         openPaper: async ({ file }) => {

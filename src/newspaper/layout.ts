@@ -24,6 +24,12 @@ export interface PaperArticle {
     title: string
     /** A short label above the headline ("WESTERN GHATS"), when the paper prints one. */
     kicker: string | null
+    /** The summary under the headline, when the paper prints one. */
+    deck: string | null
+    /** "Saurabh Trivedi", "Special Correspondent". */
+    byline: string | null
+    /** Where it was filed from: "NEW DELHI". */
+    dateline: string | null
     paragraphs: string[]
     /** The printed page it starts on, from 1. */
     page: number
@@ -69,24 +75,39 @@ interface Block {
     text: string
 }
 
-/** Column gutters: the vertical strips of a page that body text never covers. Text is never joined across one,
- *  however wide the word spacing of justified text gets. */
-function findGutters(items: TextItem[], width: number, body: number): (from: number, to: number) => boolean {
-    const covered = new Uint16Array(Math.ceil(width) + 1)
+/** Column gutters: strips of page that body text never covers, looked for around each line (about four lines above
+ *  and below it) rather than down the whole page, since a modular page changes its columns from story to story (a
+ *  three-column story above a four-column one). Up to two of those lines may cross it (a summary under a headline).
+ *  Text is never joined across one, however wide the word spacing of justified text gets: inside a column, most of
+ *  the lines around cover any word gap. */
+function findGutters(items: TextItem[], width: number, height: number, body: number): (from: number, to: number, y: number) => boolean {
+    const band = body * 1.3
+    const bands = Math.ceil(height / band) + 1
+    const cols = Math.ceil(width) + 1
+    const covered = new Uint8Array(bands * cols)
     for (const item of items) {
         if (Math.abs(item.size - body) < body * 0.25) {
-            for (let x = Math.max(0, Math.floor(item.x)); x < Math.min(covered.length, Math.ceil(item.x + item.width)); x++) {
-                covered[x]++
+            const row = Math.min(bands - 1, Math.max(0, Math.floor((item.y + item.size / 2) / band)))
+            for (let x = Math.max(0, Math.floor(item.x)); x < Math.min(cols, Math.ceil(item.x + item.width)); x++) {
+                covered[row * cols + x] = 1
             }
         }
     }
-    const peak = Math.max(...covered)
-    const empty = covered.map((c) => (c <= peak * 0.01 ? 1 : 0))
-    // Whether a stretch of a few points of empty page lies between two x positions.
-    return (from, to) => {
+    const REACH = 4
+    const CROSSINGS = 2
+    // Whether a stretch of a few points of empty page lies between two x positions, around height y.
+    return (from, to, y) => {
+        const row = Math.floor(y / band)
+        const first = Math.max(0, row - REACH)
+        const last = Math.min(bands - 1, row + REACH)
         let run = 0
-        for (let x = Math.max(0, Math.ceil(from)); x < Math.min(empty.length, Math.floor(to)); x++) {
-            run = empty[x] ? run + 1 : 0
+        for (let x = Math.max(0, Math.ceil(from)); x < Math.min(cols, Math.floor(to)); x++) {
+            // A line or two may cross a gutter (a summary under a headline, a caption): still a gutter.
+            let crossings = 0
+            for (let r = first; r <= last && crossings <= CROSSINGS; r++) {
+                crossings += covered[r * cols + x]
+            }
+            run = crossings <= CROSSINGS ? run + 1 : 0
             if (run >= 3) {
                 return true
             }
@@ -106,7 +127,7 @@ function bodySize(items: TextItem[]): number {
 }
 
 /** Lines: items at the same height, side by side, of the same size, and not across a column gutter. */
-function toLines(items: TextItem[], acrossGutter: (from: number, to: number) => boolean): Line[] {
+function toLines(items: TextItem[], acrossGutter: (from: number, to: number, y: number) => boolean): Line[] {
     const lines: Line[] = []
     const sorted = items.filter((item) => item.str.trim()).sort((a, b) => a.y - b.y || a.x - b.x)
     for (const item of sorted) {
@@ -117,7 +138,7 @@ function toLines(items: TextItem[], acrossGutter: (from: number, to: number) => 
                 // Justified text can space words widely, so the gap alone can't tell a word space from a gutter.
                 item.x - l.right < item.size * 2.5 &&
                 item.x - l.right > -item.size * 0.5 &&
-                !(item.size < 15 && acrossGutter(l.right, item.x))
+                !(item.size < 15 && acrossGutter(l.right, item.x, item.y + item.size / 2))
         )
         if (line) {
             const gap = item.x - line.right > item.size * 0.15 && !line.text.endsWith(' ') ? ' ' : ''
@@ -189,6 +210,31 @@ const NOT_TEXT = /[\uE000-\uF8FF\uFFFD]|\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0
 const RUNNING_HEAD =
     /\b(THE HINDU|HINDU|INDIAN EXPRESS|EXPRESS|MINT|BUSINESS LINE|BUSINESSLINE|TIMES OF INDIA|HINDUSTAN TIMES|(MON|TUES|WEDNES|THURS|FRI|SATUR|SUN)DAY|JANUARY|FEBRUARY|MARCH|APRIL|MAY|JUNE|JULY|AUGUST|SEPTEMBER|OCTOBER|NOVEMBER|DECEMBER|\d+)\b/gi
 
+/** A name in a byline: "Saurabh", "Rajagopal", "K.", "D'Souza". */
+const NAME = String.raw`(?:\p{Lu}\p{Ll}[\p{L}'’.-]*|\p{Lu}\.)`
+/** A dateline: the place in capitals a story starts from ("NEW DELHI", "THIRUVANANTHAPURAM"). */
+const PLACE = String.raw`[A-Z][A-Z.'’-]{2,}(?:\s[A-Z][A-Z.'’-]+){0,2}`
+/** Capitals that start a sentence but aren't a place. */
+const NOT_A_PLACE = /^(BJP|CBI|AAP|DMK|AIADMK|TMC|ISRO|NASA|RBI|SEBI|NIA|IPL|BCCI|ICC|FIFA|WHO|IMF|NATO|CPI|CPM|NDA|UPA|GST|EPFO|SIR|THE|AND)$/
+/** A byline and dateline after the summary ("…surveillance mission Saurabh Trivedi NEW DELHI The Indian Navy…"),
+ *  or a dateline alone at the start ("GENEVA The recovery…"). */
+const BYLINE = new RegExp(String.raw`(^|[\p{Ll}\d.;:’”)]\s+)(${NAME}(?:\s+${NAME}){1,3})\s+(${PLACE})\s+(?=\p{Lu}\p{Ll}|[“"‘])`, 'u')
+const DATELINE_START = new RegExp(String.raw`^(${PLACE})\s+(?=\p{Lu}\p{Ll}|[“"‘])`, 'u')
+
+/** A story's text taken apart: the summary printed above the byline, the byline, the dateline and the story. */
+export function splitHead(text: string): { deck: string | null; byline: string | null; dateline: string | null; body: string } {
+    const found = BYLINE.exec(text.slice(0, 700))
+    if (found && !NOT_A_PLACE.test(found[3])) {
+        const deck = text.slice(0, found.index + found[1].length).trim()
+        return { deck: deck || null, byline: found[2], dateline: found[3], body: text.slice(found.index + found[0].length) }
+    }
+    const place = DATELINE_START.exec(text)
+    if (place && !NOT_A_PLACE.test(place[1].split(' ')[0])) {
+        return { deck: null, byline: null, dateline: place[1], body: text.slice(place[0].length) }
+    }
+    return { deck: null, byline: null, dateline: null, body: text }
+}
+
 /** A marker some papers print before a story's first word, which comes out of the PDF as a stray letter or symbol
  *  ("X In-form striker…", "■ The…"): a lone capital other than A, I or O, or anything that isn't a letter. */
 const LEAD_MARK = /^(?:[^\p{L}\p{N}"“‘'(]+|[B-HJ-NP-Z](?=\s+\p{Lu}))\s*/u
@@ -202,7 +248,7 @@ const isUpperLabel = (text: string): boolean => text.length >= 3 && text.length 
 export function readPage(page: PageText, pageNumber: number): { section: string | null; articles: PaperArticle[]; teasers: Teaser[] } {
     const items = page.items.map((item) => ({ ...item, str: item.str.replace(NOT_TEXT, '') })).filter((item) => item.str.trim())
     const body = bodySize(items)
-    const lines = toLines(items, findGutters(items, page.width, body))
+    const lines = toLines(items, findGutters(items, page.width, page.height, body))
     const blocks = toBlocks(lines).filter((b) => !PRINT_CODE.test(b.text) && !AD.test(b.text))
 
     // Section: an all-capitals label in the strip at the top of an inner page ("Chennai KERALAM" → "KERALAM").
@@ -255,17 +301,27 @@ export function readPage(page: PageText, pageNumber: number): { section: string 
         .sort((a, b) => a.y - b.y || a.x - b.x)
     const bodyBlocks = remaining.filter((b) => b.size < body * 1.35 && !isUpperLabel(b.text))
 
-    // Each body block belongs to the nearest headline above it whose columns cover it.
+    // Each body block belongs to the nearest headline above it that covers it. A headline is often narrower than
+    // its story, though, so a block that starts beside one already placed (same height, just across a gutter) is
+    // that story's next column, unless a nearer headline sits right over it. Placed left to right for that.
     const owner = new Map<Block, Block[]>()
     for (const h of headlines) {
         owner.set(h, [])
     }
-    for (const b of bodyBlocks) {
+    const placed = new Map<Block, Block>()
+    const covers = (h: Block, b: Block): boolean => {
         const centre = (b.x + b.right) / 2
-        const candidates = headlines.filter((h) => h.y <= b.y + body && centre >= h.x - body * 2 && centre <= h.right + body * 2)
-        const nearest = candidates.sort((a, c) => c.y - a.y)[0]
-        if (nearest) {
-            owner.get(nearest)!.push(b)
+        return centre >= h.x - body * 2 && centre <= h.right + body * 2
+    }
+    for (const b of [...bodyBlocks].sort((a, c) => a.x - c.x || a.y - c.y)) {
+        const above = headlines.filter((h) => h.y <= b.y + body)
+        const direct = above.filter((h) => covers(h, b)).sort((a, c) => c.y - a.y)[0]
+        const beside = [...placed.keys()].find((l) => b.x - l.right >= -body && b.x - l.right < body * 3 && Math.abs(l.y - b.y) < body * 2.5)
+        const besideOwner = beside ? placed.get(beside) : undefined
+        const chosen = besideOwner && (!direct || besideOwner.y > direct.y) ? besideOwner : direct
+        if (chosen) {
+            placed.set(b, chosen)
+            owner.get(chosen)!.push(b)
         }
     }
 
@@ -291,10 +347,14 @@ export function readPage(page: PageText, pageNumber: number): { section: string 
         const kickerBlock = remaining.find(
             (k) => k !== h && isUpperLabel(k.text) && k.bottom <= h.y + body && h.y - k.bottom < body * 2.5 && Math.abs(k.x - h.x) < body * 3
         )
+        const head = (all: string): Pick<PaperArticle, 'deck' | 'byline' | 'dateline' | 'paragraphs'> => {
+            const { deck, byline, dateline, body: story } = splitHead(all)
+            return { deck, byline, dateline, paragraphs: splitParagraphs(story.replace(LEAD_MARK, '')) }
+        }
         articles.push({
             title: h.text,
             kicker: kickerBlock?.text ?? null,
-            paragraphs: splitParagraphs(clean),
+            ...head(clean),
             page: pageNumber,
             continuesOn,
         })
