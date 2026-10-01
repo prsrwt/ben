@@ -3,6 +3,7 @@
 import { useMountedLogic } from 'kea'
 
 import { Desktop } from '~/desktop/Desktop'
+import { useNoBrowserMenu } from '~/desktop/useNoBrowserMenu'
 import { themeLogic } from '~/desktop/themeLogic'
 import { windowsLogic } from '~/desktop/windowsLogic'
 import { historyLogic } from '~/history/historyLogic'
@@ -16,6 +17,8 @@ export function App(): JSX.Element {
     useMountedLogic(readerLogic)
     // Reading history, recorded whether or not its window is open.
     useMountedLogic(historyLogic)
+    // Ben's own right-click menus only: the browser's would offer Reload, which wipes every open window.
+    useNoBrowserMenu()
 
     return <Desktop />
 }

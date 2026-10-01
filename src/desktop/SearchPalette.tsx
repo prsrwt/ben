@@ -59,8 +59,18 @@ export function IslandSearch(): JSX.Element {
                 inputRef.current?.select()
             }
         }
+        // "Search for" in a right-click menu: open the notch with that text typed in.
+        const onSearchFor = (event: Event): void => {
+            setQuery((event as CustomEvent<string>).detail)
+            setChosen(0)
+            inputRef.current?.focus()
+        }
         window.addEventListener('keydown', onKeyDown)
-        return () => window.removeEventListener('keydown', onKeyDown)
+        window.addEventListener('ben:search', onSearchFor)
+        return () => {
+            window.removeEventListener('keydown', onKeyDown)
+            window.removeEventListener('ben:search', onSearchFor)
+        }
     }, [])
 
     const onKeyDown = (e: React.KeyboardEvent): void => {

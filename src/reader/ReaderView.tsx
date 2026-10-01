@@ -11,10 +11,10 @@ import { useActions, useValues } from 'kea'
 import { ReactNode, useCallback, useEffect, useRef, useState } from 'react'
 
 import { cn } from '~/desktop/cn'
+import { ContextMenu, MenuAt, MenuItem } from '~/desktop/ContextMenu'
 import { WindowId, windowsLogic } from '~/desktop/windowsLogic'
 
 import { Article, toArticleUrl } from './fetchArticle'
-import { LinkMenu } from './LinkMenu'
 import { ContentsEntry, openBook, registerBook, setCurrentSection } from './openBooks'
 import { readerLogic, readerWindowState } from './readerLogic'
 import { BOTTOM_MARGIN, PAGE_GAP, TOP_MARGIN, useBook } from './useBook'
@@ -101,16 +101,18 @@ function turnDirection(event: KeyboardEvent): 1 | -1 | null {
 
 function ArticleBook({ pageId, article, windowId }: { pageId: number; article: Article; windowId: WindowId }): JSX.Element {
     const { focusedId } = useValues(windowsLogic)
-    const { openLink, openLinkBeside, openLinkInNewWindow } = useActions(readerLogic)
+    const { histories } = useValues(readerLogic)
+    const { canGoBack, canGoForward } = readerWindowState(histories, windowId)
+    const { openLink, openLinkBeside, openLinkInNewWindow, back, forward } = useActions(readerLogic)
     const bookRef = useRef<HTMLDivElement>(null)
     const articleRef = useRef<HTMLElement>(null)
     const { layout, page, pageCount, turning, turn, showElement, pageOf } = useBook(bookRef, articleRef, {
         initial: readingPlaces.get(pageId) ?? null,
         onChange: (place) => readingPlaces.set(pageId, place),
     })
-    // The middle-click menu: where it was opened, and for which link.
-    const [linkMenu, setLinkMenu] = useState<{ x: number; y: number; url: string } | null>(null)
-    const closeLinkMenu = useCallback(() => setLinkMenu(null), [])
+    // The right-click (or middle-click) menu, where it was opened and what it offers.
+    const [menu, setMenu] = useState<MenuAt | null>(null)
+    const closeMenu = useCallback(() => setMenu(null), [])
     const isFront = focusedId === windowId
 
     // The keys turn pages in the Reader window in front only.
@@ -184,9 +186,33 @@ function ArticleBook({ pageId, article, windowId }: { pageId: number; article: A
     }, [windowId, page, layout, pageCount])
     useEffect(() => () => setCurrentSection(windowId, null), [windowId])
 
-    // Links inside the article never navigate Ben itself: links to a part of this page turn to it,
-    // other web links open in the Reader (this window; a new one with Ctrl+click; the middle button asks:
-    // new window or side by side), anything else does nothing.
+    /** Where a link in the article leads: a part of this page, another web page, or nowhere Ben opens. */
+    const linkTarget = (link: HTMLAnchorElement): { section: Element } | { url: string } | null => {
+        const href = link.getAttribute('href')
+        if (!href) {
+            return null
+        }
+        const target = new URL(href, article.url)
+        const current = new URL(article.url)
+        if (target.hash && target.origin + target.pathname + target.search === current.origin + current.pathname + current.search) {
+            const id = decodeURIComponent(target.hash.slice(1))
+            const section = articleRef.current?.querySelector(`[id="${CSS.escape(id)}"], [name="${CSS.escape(id)}"]`)
+            return section ? { section } : null
+        }
+        const url = toArticleUrl(target.href)
+        return url ? { url } : null
+    }
+
+    const linkItems = (url: string): MenuItem[] => [
+        { label: 'Open', choose: () => openLink(windowId, url) },
+        { label: 'Open in new window', hint: 'Ctrl+click', choose: () => openLinkInNewWindow(url) },
+        { label: 'Open side by side', choose: () => openLinkBeside(windowId, url) },
+        { label: 'Copy link', divider: true, choose: () => void navigator.clipboard.writeText(url) },
+    ]
+
+    // Links inside the article never navigate Ben itself: links to a part of this page turn to it, other web
+    // links open in the Reader (this window; a new one with Ctrl+click; the middle button and right-click
+    // offer the choices), anything else does nothing.
     const onLinkClick = (e: React.MouseEvent<HTMLElement>): void => {
         const link = (e.target as HTMLElement).closest('a')
         if (!link) {
@@ -197,31 +223,51 @@ function ArticleBook({ pageId, article, windowId }: { pageId: number; article: A
         if (e.type !== 'click' && !middle) {
             return
         }
-        const href = link.getAttribute('href')
-        if (!href) {
+        const target = linkTarget(link)
+        if (!target) {
             return
         }
-        const target = new URL(href, article.url)
-        const current = new URL(article.url)
-        if (target.hash && target.origin + target.pathname + target.search === current.origin + current.pathname + current.search) {
-            const id = decodeURIComponent(target.hash.slice(1))
-            const element = articleRef.current?.querySelector(`[id="${CSS.escape(id)}"], [name="${CSS.escape(id)}"]`)
-            if (element) {
-                showElement(element)
-            }
-            return
-        }
-        const next = toArticleUrl(target.href)
-        if (!next) {
-            return
-        }
-        if (middle) {
-            setLinkMenu({ x: e.clientX, y: e.clientY, url: next })
+        if ('section' in target) {
+            showElement(target.section)
+        } else if (middle) {
+            setMenu({ x: e.clientX, y: e.clientY, items: linkItems(target.url) })
         } else if (e.ctrlKey || e.metaKey) {
-            openLinkInNewWindow(next)
+            openLinkInNewWindow(target.url)
         } else {
-            openLink(windowId, next)
+            openLink(windowId, target.url)
         }
+    }
+
+    // Right-click anywhere on the book: what's offered depends on what's under the pointer (a link, selected
+    // text), followed by the page's own options. Works on trackpads, where there's no middle button.
+    const onContextMenu = (e: React.MouseEvent<HTMLElement>): void => {
+        e.preventDefault()
+        const items: MenuItem[] = []
+        const link = (e.target as HTMLElement).closest('a')
+        const target = link ? linkTarget(link) : null
+        if (target && 'url' in target) {
+            items.push(...linkItems(target.url))
+        } else if (target) {
+            items.push({ label: 'Go to section', choose: () => showElement(target.section) })
+        }
+        const selection = window.getSelection()
+        const selected = selection && articleRef.current?.contains(selection.anchorNode) ? selection.toString().trim() : ''
+        if (selected) {
+            const short = selected.length > 24 ? `${selected.slice(0, 24)}…` : selected
+            items.push(
+                { label: 'Copy', hint: 'Ctrl+C', divider: items.length > 0, choose: () => void navigator.clipboard.writeText(selected) },
+                { label: `Search for “${short}”`, choose: () => window.dispatchEvent(new CustomEvent('ben:search', { detail: selected })) }
+            )
+        }
+        const lastSpread = layout ? page + layout.perSpread >= pageCount : true
+        items.push(
+            { label: 'Previous page', hint: '←', divider: items.length > 0, disabled: page === 0, choose: () => turn(-1) },
+            { label: 'Next page', hint: '→', disabled: lastSpread, choose: () => turn(1) },
+            { label: 'Back', hint: 'Alt+←', divider: true, disabled: !canGoBack, choose: () => back(windowId) },
+            { label: 'Forward', hint: 'Alt+→', disabled: !canGoForward, choose: () => forward(windowId) },
+            { label: 'Copy page link', divider: true, choose: () => void navigator.clipboard.writeText(article.url) }
+        )
+        setMenu({ x: e.clientX, y: e.clientY, items })
     }
 
     // Pressing the middle button on a link would start the browser's auto-scroll (the round scroll
@@ -238,7 +284,7 @@ function ArticleBook({ pageId, article, windowId }: { pageId: number; article: A
         : []
 
     return (
-        <div ref={bookRef} className="reader-book relative h-full overflow-hidden">
+        <div ref={bookRef} className="reader-book relative h-full overflow-hidden" onContextMenu={onContextMenu}>
             {layout && (
                 <>
                     {/* The margins either side of the pages turn back and forward. */}
@@ -322,15 +368,7 @@ function ArticleBook({ pageId, article, windowId }: { pageId: number; article: A
                         {p + 1}
                     </span>
                 ))}
-            {linkMenu && (
-                <LinkMenu
-                    x={linkMenu.x}
-                    y={linkMenu.y}
-                    onNewWindow={() => openLinkInNewWindow(linkMenu.url)}
-                    onSideBySide={() => openLinkBeside(windowId, linkMenu.url)}
-                    onClose={closeLinkMenu}
-                />
-            )}
+            {menu && <ContextMenu {...menu} onClose={closeMenu} />}
         </div>
     )
 }
