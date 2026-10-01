@@ -9,11 +9,11 @@ remove clutter and distraction from studying online. Planned apps, each still an
 - **History:** every page read in the Reader (link, title, time; not the article), grouped by day, kept
   across restarts in localStorage `ben.history` (last 1,000). Built.
 - **Library:** the student's own study files (PDF, Word, PowerPoint, photos) from folders they choose, recognised
-  and put on shelves by subject and kind. Read-only: files are never moved or changed. Phase I1 built. Newspaper
-  PDFs (e-papers with real text) open in the Reader as one book: sections and headlines in Contents, "» PAGE n"
-  pointers as links (`src/newspaper/`). Next I2 (syllabus units + coverage), then exam layouts, Windows OCR for
+  and put on shelves by subject and kind. Read-only: files are never moved or changed. Phase I1 built. Newspapers
+  sit on their shelf newest first, with their dates, and open in the Newspaper window. Next I2 (syllabus units + coverage), then exam layouts, Windows OCR for
   photos and scanned papers, and "explain visually".
-- **Newspaper:** RSS sources laid out as an old-times broadsheet.
+- **Newspaper:** an old-times broadsheet. Built for e-paper PDFs from the Library (with real text; scans wait for
+  OCR); RSS sources are still to come, in the same broadsheet.
 - **Videos:** YouTube captions turned into readable, chaptered transcripts.
 - **Notes**, **Trash**.
 
@@ -87,6 +87,16 @@ Build one app at a time, only when the user asks. Everything else stays empty.
   The grain is the element's own background, so it sits under the text and letters stay sharp. It must stay
   a pre-made image: live SVG noise (`feTurbulence`) re-runs on every repaint and made the app lag. A paper
   texture was tried and dropped on 2026-09-29.
+- **Newspaper broadsheet** (`NewspaperView.tsx`, `newspaper.css`, agreed 2026-10-01): newsprint sheet (dark
+  newsprint in dark theme) inside the glass window, the paper's name as a blackletter masthead
+  (UnifrakturMaguntia), boxed ears, the date between a double and a single rule, headlines in Old Standard TT,
+  column text in Literata with hairline column rules and drop caps. Each section is a page: the first story as
+  the lead across four of six columns, "In brief" beside it on the front page (pointers and briefs with their
+  datelines, each leading to its story) or "In this section" elsewhere, the other stories in rows of three,
+  sections along the foot; ← → move between sections. Excerpts only: a headline, "Read on" or "Page n →" opens
+  the story in the Reader (the Reader window already showing a paper's story, else a new one), with its "continued
+  on page n" part joined on. Narrow windows fold to one column (container query). The two fonts (~100 KB) download
+  only when a paper shows.
 - **Theme:** light / dark / "Sync with system", stored in localStorage `ben.theme` (migrated once from the
   old key `scenes.userLogic.user`). `ThemeSync.tsx` sets `<body theme="dark|light">`.
 
@@ -98,10 +108,10 @@ Build one app at a time, only when the user asks. Everything else stays empty.
 | `src/styles.css` | Tailwind v4 plus Ben's colour tokens (`text-primary`, `text-secondary`, `text-tertiary`, `bg-hover`, `text-accent`...) for light and dark |
 | `src/desktop/desktop.css` | Wallpaper, glass, traffic lights, scrollbar, search bar, icon layers (plain CSS, native nesting) |
 | `src/desktop/apps.tsx` | The app registry (id, title, column). Add an app here |
-| `src/desktop/windowContent.tsx` | What each window shows. The Reader has its view; the rest are `EmptyWindow` |
+| `src/desktop/windowContent.tsx` | What each window shows. Reader, History, Library and Newspaper have their views; the rest are `EmptyWindow` |
 | `src/library/` | Library: `classify.ts` (recognises kind/subject/mine/course code from name, folder, pages, first-page text; pure, testable), `libraryLogic.ts` (folders, identity, index in app data `library.json`, scan reads only new/changed files, corrections, grouping of copies/formats), `libraryApi.ts`, `LibraryView.tsx` (first-run setup, subject sidebar, shelves, "Needs you", PDF/photo viewer) |
 | `src-tauri/src/library.rs` | Library file work: suggest folders, list (skips hidden/system/code-project folders), read text (lopdf, docx/pptx XML via zip), watch (notify → `library-changed`), save index, open in program (only inside chosen folders), asset-protocol scope for viewing |
-| `src/newspaper/` | Newspaper PDFs: `layout.ts` (positioned words → sections, stories, teasers, continuations; spots scanned/scrambled papers; pure, testable), `pdfText.ts` (words via PDF.js), `paperArticle.ts` (a paper as one Reader article, all text escaped), `paperFile.ts` (a paper's Reader address: its `file:///` URL + `?title=`), `openPaper.ts` (loaded only when a paper opens, so PDF.js and its worker stay out of the main bundle), `ocrPage.ts` (OCR words → the layout's positioned words). Papers aren't recorded in History |
+| `src/newspaper/` | Newspaper PDFs: `layout.ts` (positioned words → sections, stories, teasers and briefs, continuations; drops icon glyphs and hidden ID codes; "PAGE n" pointers with or without "»"; spots scanned/scrambled papers; pure, testable), `pdfText.ts` (words via PDF.js), `paperFile.ts` (a paper's address: its `file:///` URL + `?title=&paper=&date=`, `&story=n` for one story in the Reader), `openPaper.ts` (loaded only when a paper opens, so PDF.js, its worker and the layout code stay out of the main bundle; keeps the last 3 papers read), `stories.ts` (story numbering, pointer targets, excerpts, one story as a Reader article; types only from `layout.ts`), `newspaperLogic.ts` (the paper open in the Newspaper window, its section, opening stories in the Reader), `NewspaperView.tsx` + `newspaper.css` (the broadsheet), `ocrPage.ts` (OCR words → the layout's positioned words). Papers aren't recorded in History |
 | `src/ocr/ocrApi.ts`, `src-tauri/src/ocr.rs` | Text recognition with Windows' built-in OCR (`Windows.Media.Ocr` via the `windows` crate Tauri already uses; offline, no download): `ocr_image` (raw image bytes) and `ocr_file` (a picture inside a Library folder) give words with pixel boxes. Elsewhere than Windows it answers with an error. Needs an OCR language installed in Windows (English usually is) |
 | `src/history/` | History: `historyLogic.ts` (records Reader page loads, persists), `HistoryView.tsx` |
 | `src/reader/` | The Reader: `fetchArticle.ts` (download via Tauri's HTTP plugin), `extractArticle.ts` (Readability + DOMPurify + clean-up, no app dependencies), `readerLogic.ts` (history: pages + index), `ReaderView.tsx`, `ReaderIslandOptions.tsx` (back/forward on the island), `useBook.ts` (page layout and turning), `reader.css` |
@@ -143,7 +153,7 @@ changes check behaviour in the real app, not only in a browser tab.
   WebView2 process it started (private bytes). Dev mode is not a fair ruler, and live reloads inflate it.
   Baseline on 2026-09-29: about 286 MB private, 0% idle CPU. Roughly 100 MB of that is WebView2's fixed cost;
   the glass blur costs about 30 MB.
-- Bundle: 340 KB of JS on 2026-10-01 (213 KB before Search, menus and the Library), mostly the Tauri API, React,
+- Bundle: 349 KB of JS on 2026-10-01 (213 KB before Search, menus and the Library), mostly the Tauri API, React,
   Readability, DOMPurify and Kea. PDF.js (~440 KB + a 1.3 MB worker) is a separate file loaded only when a paper opens. To see what a change costs, build with `--sourcemap` and sum bytes per
   source package.
 

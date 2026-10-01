@@ -22,7 +22,7 @@ export interface WindowSummary {
 
 /** A web page's site ("en.wikipedia.org"), or a paper's title for a newspaper opened from the Library. */
 export const hostOf = (url: string): string =>
-    isPaperUrl(url) ? paperFile(url).title : new URL(url).hostname.replace(/^www\./, '')
+    isPaperUrl(url) ? (paperFile(url).paper ?? paperFile(url).title) : new URL(url).hostname.replace(/^www\./, '')
 
 export function useWindowSummaries(): WindowSummary[] {
     const { windows } = useValues(windowsLogic)
