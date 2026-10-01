@@ -25,9 +25,12 @@ export interface OcrPage {
 
 const NOT_IN_APP = 'Reading text from pictures works in the Ben app, not in a browser tab.'
 
-/** The text in an image's bytes (PNG, JPEG…), such as a scanned page rendered by PDF.js. */
-export const ocrImage = (image: Uint8Array): Promise<OcrPage> =>
-    IS_DESKTOP_APP ? invoke('ocr_image', image) : Promise.reject(new Error(NOT_IN_APP))
+/** The text in an image's bytes (PNG, JPEG…), such as a scanned page rendered by PDF.js. `language` ("hi") asks
+ *  for that language rather than the student's own; it rejects if Windows can't read it. */
+export const ocrImage = (image: Uint8Array, language?: string): Promise<OcrPage> =>
+    IS_DESKTOP_APP
+        ? invoke('ocr_image', image, language ? { headers: { 'Ocr-Language': language } } : undefined)
+        : Promise.reject(new Error(NOT_IN_APP))
 
 /** The text in a picture file inside one of the Library's folders. */
 export const ocrFile = (path: string): Promise<OcrPage> =>

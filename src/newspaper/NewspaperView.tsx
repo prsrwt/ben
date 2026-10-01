@@ -110,7 +110,9 @@ function Broadsheet({ open, windowId }: { open: OpenPaper; windowId: WindowId })
     const isFront = focusedId === windowId
     const first = Math.min(...current.articles.map((a) => a.page))
     const last = Math.max(...current.articles.map((a) => a.page))
-    const printedPages = first === last ? `Page ${first}` : `Pages ${first}–${last}`
+    const printedPages = first === last ? `page ${first}` : `pages ${first}–${last}`
+    const prevSection = paper.sections[section - 1]
+    const nextSection = paper.sections[section + 1]
 
     const body = (): Element | null | undefined => sheetRef.current?.closest('.desktop-window__body')
     /** A story chosen from Contents, to scroll to once its section shows. */
@@ -276,13 +278,26 @@ function Broadsheet({ open, windowId }: { open: OpenPaper; windowId: WindowId })
                 <div className="np-ear">
                     Section {section + 1} of {paper.sections.length}
                     <br />
-                    {current.name}
+                    {current.name} · {printedPages}
                 </div>
             </header>
+            {/* The section before and after, named, either side of the date. */}
             <div className="np-date">
-                <span>{printedPages}</span>
+                {prevSection ? (
+                    <button type="button" className="np-nav" onClick={() => showSection(section - 1)} title="Previous section (←)">
+                        ‹ {prevSection.name}
+                    </button>
+                ) : (
+                    <span className="np-nav-none">{current.name}</span>
+                )}
                 <span>{longDate(open.file.date) ?? ''}</span>
-                <span>{current.name}</span>
+                {nextSection ? (
+                    <button type="button" className="np-nav" onClick={() => showSection(section + 1)} title="Next section (→)">
+                        {nextSection.name} ›
+                    </button>
+                ) : (
+                    <span className="np-nav-none">Last section</span>
+                )}
             </div>
 
             <div className="np-grid">
@@ -362,16 +377,42 @@ function Broadsheet({ open, windowId }: { open: OpenPaper; windowId: WindowId })
                 </div>
             ))}
 
-            <nav className="np-sections" aria-label="Sections">
-                {paper.sections.map((s, i) => (
-                    <button key={i} type="button" className={cn('np-section', i === section && 'np-section--current')} onClick={() => showSection(i)}>
-                        {s.name}
+            {/* The foot: the section before, every section, the section after. */}
+            <nav className="np-foot" aria-label="Sections">
+                {prevSection ? (
+                    <button type="button" className="np-foot-step" onClick={() => showSection(section - 1)}>
+                        <span>‹ Previous section</span>
+                        {prevSection.name}
                     </button>
-                ))}
+                ) : (
+                    <span />
+                )}
+                <div className="np-sections">
+                    {paper.sections.map((s, i) => (
+                        <button key={i} type="button" className={cn('np-section', i === section && 'np-section--current')} onClick={() => showSection(i)}>
+                            {s.name}
+                        </button>
+                    ))}
+                </div>
+                {nextSection ? (
+                    <button type="button" className="np-foot-step np-foot-step--next" onClick={() => showSection(section + 1)}>
+                        <span>Next section ›</span>
+                        {nextSection.name}
+                    </button>
+                ) : (
+                    <span />
+                )}
             </nav>
         </div>
     )
 }
+
+/** The paper's end mark, after a story's last word. */
+const EndMark = (): JSX.Element => (
+    <span className="np-read-end" aria-hidden>
+        {' '}■
+    </span>
+)
 
 /** Keys that turn a story's pages, unless focus is somewhere they mean something else (a field, a menu). */
 function turnDirection(event: KeyboardEvent): 1 | -1 | null {
@@ -421,6 +462,10 @@ function StorySheet({
     const before = stories[index - 1]
     const after = stories[index + 1]
     const afterSection = sectionOf(after)
+    const beforeSection = sectionOf(before)
+    const sectionArticles = paper.sections.find((x) => x.articles.includes(story))?.articles ?? [story]
+    const inSection = sectionArticles.indexOf(story)
+    const sectionStories = sectionArticles.length
     const bookRef = useRef<HTMLDivElement>(null)
     const articleRef = useRef<HTMLElement>(null)
     const { layout, page, pageCount, turning, turn, recount } = useBook(bookRef, articleRef, { initial: null, onChange: () => {} })
@@ -474,11 +519,14 @@ function StorySheet({
 
     return (
         <>
+            <button type="button" className="np-close" onClick={() => onGo(null)} title="Close the story (Esc)" aria-label="Close the story">
+                ×
+            </button>
             <header className="np-read-top">
                 <div className="np-read-mast">{masthead}</div>
                 <div className="np-date">
-                    <button type="button" className="np-back" onClick={() => onGo(null)} title="Back to the page (Esc)">
-                        ← {section ?? 'Back'}
+                    <button type="button" className="np-nav" onClick={() => onGo(null)} title="Back to the page (Esc)">
+                        ‹ Back to {section ?? 'the paper'}
                     </button>
                     <span>{date ?? ''}</span>
                     <span>
@@ -542,32 +590,23 @@ function StorySheet({
                         </header>
                         <div className="np-read-text">
                             {story.paragraphs.map((p, i) => (
-                                <p key={i}>{p}</p>
+                                <p key={i}>
+                                    {p}
+                                    {!next && i === story.paragraphs.length - 1 && <EndMark />}
+                                </p>
                             ))}
                             {next && (
                                 <>
                                     <p className="np-read-continues">Continued on page {next.page}</p>
                                     {next.paragraphs.map((p, i) => (
-                                        <p key={`next-${i}`}>{p}</p>
+                                        <p key={`next-${i}`}>
+                                            {p}
+                                            {i === next.paragraphs.length - 1 && <EndMark />}
+                                        </p>
                                     ))}
                                 </>
                             )}
                         </div>
-                        <footer className="np-read-foot">
-                            {after ? (
-                                <button type="button" className="np-read-step" onClick={() => onGo(index + 1)}>
-                                    <span>{afterSection !== section ? `Next, in ${afterSection} →` : 'Next →'}</span>
-                                    {after.title}
-                                </button>
-                            ) : (
-                                <span className="np-read-step">
-                                    <span>The end of the paper</span>
-                                </span>
-                            )}
-                            <button type="button" className="np-turn np-read-reader" onClick={() => onReader(index)}>
-                                Open in Reader
-                            </button>
-                        </footer>
                     </article>
                 </div>
                 {layout &&
@@ -581,6 +620,40 @@ function StorySheet({
                         </span>
                     ))}
             </div>
+
+            {/* Always in view: the story before and after (named, with their section when it changes), where you
+                are, and the Reader. */}
+            <nav className="np-read-nav" aria-label="Stories">
+                {before ? (
+                    <button type="button" className="np-foot-step" onClick={() => onGo(index - 1)} title="Story before (← on the first page)">
+                        <span>{beforeSection !== section ? `‹ Previous section: ${beforeSection}` : '‹ Previous story'}</span>
+                        {before.title}
+                    </button>
+                ) : (
+                    <span />
+                )}
+                <div className="np-read-where">
+                    <span>
+                        {layout && pageCount > 1
+                            ? `Page ${page + 1}${layout.perSpread === 2 && page + 2 <= pageCount ? `–${page + 2}` : ''} of ${pageCount}`
+                            : 'One page'}
+                        {' · '}Story {inSection + 1} of {sectionStories} in {section}
+                    </span>
+                    <button type="button" className="np-turn" onClick={() => onReader(index)}>
+                        Open in Reader
+                    </button>
+                </div>
+                {after ? (
+                    <button type="button" className="np-foot-step np-foot-step--next" onClick={() => onGo(index + 1)} title="Next story (→ on the last page)">
+                        <span>{afterSection !== section ? `Next section: ${afterSection} ›` : 'Next story ›'}</span>
+                        {after.title}
+                    </button>
+                ) : (
+                    <span className="np-foot-step np-foot-step--next">
+                        <span>The end of the paper</span>
+                    </span>
+                )}
+            </nav>
         </>
     )
 }

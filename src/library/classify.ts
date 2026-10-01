@@ -105,7 +105,9 @@ const SUBJECTS: [RegExp, string][] = [
     [/\b(polity|economy|geography|general[\s_-]*awareness|ga)\b/i, 'General Awareness'],
 ]
 
-/** Newspaper short forms used in file names that circulate, e.g. "th.th_international.17_09_2026.pdf". */
+/** Newspaper short forms used in file names that circulate, e.g. "th.th_international.17_09_2026.pdf", and Hindi
+ *  papers by name in Devanagari anywhere in the name ("राष्ट्रीय जागरण 18 09"). (\b doesn't work beside Devanagari
+ *  letters, so the Hindi names go without it.) */
 const PAPERS: [RegExp, string][] = [
     [/^(th|the[\s_-]*hindu)\b/i, 'The Hindu'],
     [/^(ie|indian[\s_-]*express)\b/i, 'Indian Express'],
@@ -113,16 +115,46 @@ const PAPERS: [RegExp, string][] = [
     [/^(ht|hindustan[\s_-]*times)\b/i, 'Hindustan Times'],
     [/^(bs|business[\s_-]*standard)\b/i, 'Business Standard'],
     [/^(et|economic[\s_-]*times)\b/i, 'Economic Times'],
-    [/^(dj|dainik[\s_-]*jagran)\b/i, 'Dainik Jagran'],
+    [/^(dj|dainik[\s_-]*jagran|jagran)\b/i, 'Dainik Jagran'],
+    [/^(au|amar[\s_-]*ujala)\b/i, 'Amar Ujala'],
+    [/^(db|dainik[\s_-]*bhaskar|bhaskar)\b/i, 'Dainik Bhaskar'],
+    [/^(nbt|navbharat[\s_-]*times)\b/i, 'Navbharat Times'],
+    [/^(jansatta)\b/i, 'Jansatta'],
+    [/^((rajasthan[\s_-]*)?patrika)\b/i, 'Rajasthan Patrika'],
+    [/^(prabhat[\s_-]*khabar)\b/i, 'Prabhat Khabar'],
+    [/^(the[\s_-]*tribune|tribune)\b/i, 'The Tribune'],
+    [/^(dh|deccan[\s_-]*herald)\b/i, 'Deccan Herald'],
+    [/^(the[\s_-]*telegraph|telegraph)\b/i, 'The Telegraph'],
+    [/^(the[\s_-]*statesman|statesman)\b/i, 'The Statesman'],
+    [/^(mint|livemint)\b/i, 'Mint'],
+    ...devanagariPapers(),
 ]
 const MASTHEADS: [RegExp, string][] = [
     [/\bthe hindu\b/i, 'The Hindu'],
-    [/\bindian express\b/i, 'Indian Express'],
+    [/\bindian\s+express\b/i, 'Indian Express'],
     [/\btimes of india\b/i, 'Times of India'],
     [/\bhindustan times\b/i, 'Hindustan Times'],
     [/\bbusiness standard\b/i, 'Business Standard'],
     [/\beconomic times\b/i, 'Economic Times'],
+    [/\bdeccan herald\b/i, 'Deccan Herald'],
+    [/\bthe tribune\b/i, 'The Tribune'],
+    [/\bthe statesman\b/i, 'The Statesman'],
+    ...devanagariPapers(),
 ]
+
+/** Hindi papers by their names in Devanagari, for file names and mastheads alike. */
+function devanagariPapers(): [RegExp, string][] {
+    return [
+        [/जागरण/, 'Dainik Jagran'],
+        [/अमर\s*उजाला/, 'Amar Ujala'],
+        [/(दैनिक\s*)?भास्कर/, 'Dainik Bhaskar'],
+        [/नवभारत\s*टाइम्स/, 'Navbharat Times'],
+        [/हिन्दुस्तान|हिंदुस्तान/, 'Hindustan'],
+        [/जनसत्ता/, 'Jansatta'],
+        [/(राजस्थान\s*)?पत्रिका/, 'Rajasthan Patrika'],
+        [/प्रभात\s*खबर/, 'Prabhat Khabar'],
+    ]
+}
 
 /** "CSF206", "CA111", "IB304", "ECF483", "LAF183": two to four letters, then three digits. */
 const COURSE_CODE = /\b([A-Z]{2,4}\d{3})\b/
@@ -140,15 +172,46 @@ export function stem(name: string): string {
 }
 
 /** A date written day-first, as Indian file names do: 17_09_2026, 17-9-26, 2026-09-17. */
-function findDate(text: string): string | null {
-    const iso = /\b(20\d\d)[-_.](\d{1,2})[-_.](\d{1,2})\b/.exec(text)
-    if (iso) {
-        return `${iso[1]}-${iso[2].padStart(2, '0')}-${iso[3].padStart(2, '0')}`
+/** Month names in English (and their short forms) and Hindi, to the month's number. */
+const MONTHS: [RegExp, number][] = [
+    [/^jan(uary)?$|^जनवरी$/i, 1],
+    [/^feb(ruary)?$|^फ़?फरवरी$/i, 2],
+    [/^mar(ch)?$|^मार्च$/i, 3],
+    [/^apr(il)?$|^अप्रैल$/i, 4],
+    [/^may$|^मई$/i, 5],
+    [/^june?$|^जून$/i, 6],
+    [/^july?$|^जुलाई$/i, 7],
+    [/^aug(ust)?$|^अगस्त$/i, 8],
+    [/^sep(t|tember)?$|^सितंबर$|^सितम्बर$/i, 9],
+    [/^oct(ober)?$|^अक्टूबर$|^अक्तूबर$/i, 10],
+    [/^nov(ember)?$|^नवंबर$|^नवम्बर$/i, 11],
+    [/^dec(ember)?$|^दिसंबर$|^दिसम्बर$/i, 12],
+]
+const monthNumber = (word: string): number | null => MONTHS.find(([pattern]) => pattern.test(word))?.[1] ?? null
+const MONTH_WORD = String.raw`([A-Za-z]{3,9}|[\u0900-\u097F]{2,8})`
+
+const isoDate = (year: string | number, month: string | number, day: string | number): string =>
+    `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+
+/** A date in a file name or a front page: "2026-09-17", "17_09_2026", "17 09 2026", "17.09.26", "17 September 2026",
+ *  "September 17, 2026", "18 सितंबर, 2026". */
+export function findDate(text: string): string | null {
+    const iso = /\b(20\d\d)[-_. ](\d{1,2})[-_. ](\d{1,2})\b/.exec(text)
+    if (iso && Number(iso[2]) <= 12 && Number(iso[3]) <= 31) {
+        return isoDate(iso[1], iso[2], iso[3])
     }
-    const dmy = /\b(\d{1,2})[-_.](\d{1,2})[-_.](20\d\d|\d\d)\b/.exec(text)
+    const dmy = /\b(\d{1,2})[-_. ](\d{1,2})[-_. ](20\d\d|\d\d)\b/.exec(text)
     if (dmy && Number(dmy[2]) <= 12 && Number(dmy[1]) <= 31) {
-        const year = dmy[3].length === 2 ? `20${dmy[3]}` : dmy[3]
-        return `${year}-${dmy[2].padStart(2, '0')}-${dmy[1].padStart(2, '0')}`
+        return isoDate(dmy[3].length === 2 ? `20${dmy[3]}` : dmy[3], dmy[2], dmy[1])
+    }
+    // Written out: day month year, or month day, year.
+    const dayFirst = new RegExp(String.raw`(\d{1,2})(?:st|nd|rd|th)?\s+${MONTH_WORD},?\s+(20\d\d)`).exec(text)
+    if (dayFirst && monthNumber(dayFirst[2]) && Number(dayFirst[1]) <= 31) {
+        return isoDate(dayFirst[3], monthNumber(dayFirst[2])!, dayFirst[1])
+    }
+    const monthFirst = new RegExp(String.raw`${MONTH_WORD}\s+(\d{1,2}),?\s+(20\d\d)`).exec(text)
+    if (monthFirst && monthNumber(monthFirst[1]) && Number(monthFirst[2]) <= 31) {
+        return isoDate(monthFirst[3], monthNumber(monthFirst[1])!, monthFirst[2])
     }
     return null
 }
@@ -209,11 +272,15 @@ export function recognise(facts: FileFacts, identity: Identity, knownCodes: Map<
         add('personal', 1.5)
     }
 
-    // Newspapers: a known short form or masthead, plus a date.
-    const paper = PAPERS.find(([pattern]) => pattern.test(base))?.[1] ?? MASTHEADS.find(([pattern]) => pattern.test(text.slice(0, 400)))?.[1]
-    const date = findDate(facts.name) ?? (paper ? findDate(text.slice(0, 400)) : null)
+    // Newspapers: a paper's name at the start of the file name (or in Devanagari anywhere in it), or its masthead
+    // on the front page; a date makes it surer. The date comes from the name, else from the front page.
+    const paperInName = PAPERS.find(([pattern]) => pattern.test(base))?.[1]
+    const paper = paperInName ?? MASTHEADS.find(([pattern]) => pattern.test(text.slice(0, 800)))?.[1]
+    const date = findDate(base) ?? (paper ? findDate(text.slice(0, 800)) : null)
     if (paper && date) {
         add('newspaper', 3)
+    } else if (paperInName) {
+        add('newspaper', 2.5)
     } else if (paper) {
         add('newspaper', 1)
     }

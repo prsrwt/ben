@@ -197,7 +197,7 @@ function toBlocks(lines: Line[]): Block[] {
 const AD = /(missed call|to subscribe|scan (the )?qr|\b\d{10}\b|\+91|www\.|https?:|\b(off|discount|offer|sale|emi|toll[- ]free|call now|book now|helpline)\b.*₹|₹.*\b(off|onwards|only)\b|printed (at|and published)|regd\.? no|rni no)/i
 /** Short codes printed on e-paper pages ("A IN-X", "CM", "YK", "J ND-NDE"). */
 const PRINT_CODE = /^([A-Z]{1,3}( [A-Z]{2,3}-[A-Z]{1,4})?|CM|YK|[A-Z] [A-Z]{2}-[A-Z]{1,4})$/
-const TEASER = /^(.*?)\s*(?:»\s*[Pp][Aa][Gg][Ee]|\bPAGE)\s*(\d{1,2})\s*$/
+const TEASER = /^(.*?)\s*(?:»\s*(?:[Pp][Aa][Gg][Ee]|पेज|पृष्ठ)|\bPAGE|(?:पेज|पृष्ठ)\s*»?)\s*(\d{1,2})\s*$/
 /** The section named before a teaser's pointer ("… NEWS » PAGE 4"), not part of its title. */
 const POINTER_SECTION = /\s*\b(news|world|business|sport|sports|opinion|editorial|city|states?|life|science|international)\s*$/i
 /** A brief's dateline: the place in capitals it starts with ("GENEVA The…", "NEW DELHI The…"). */
@@ -239,14 +239,17 @@ export function splitHead(text: string): { deck: string | null; byline: string |
  *  ("X In-form striker…", "■ The…"): a lone capital other than A, I or O, or anything that isn't a letter. */
 const LEAD_MARK = /^(?:[^\p{L}\p{N}"“‘'(]+|[B-HJ-NP-Z](?=\s+\p{Lu}))\s*/u
 
-/** "» PAGE 4" (or "PAGE 4" after an icon, in capitals) at the end of a line: a teaser's pointer, or a story
- *  continuing on that page. */
-const POINTER = /(?:»\s*[Pp][Aa][Gg][Ee]|\bPAGE)\s*(\d{1,2})\s*$/
+/** "» PAGE 4" (or "PAGE 4" after an icon, in capitals; in Hindi papers "पेज » 11") at the end of a line: a
+ *  teaser's pointer, or a story continuing on that page. */
+const POINTER = /(?:»\s*(?:[Pp][Aa][Gg][Ee]|पेज|पृष्ठ)|\bPAGE|(?:पेज|पृष्ठ)\s*»?)\s*(\d{1,2})\s*$/
 
 const isUpperLabel = (text: string): boolean => text.length >= 3 && text.length <= 40 && text === text.toUpperCase() && /[A-Z]/.test(text)
 
 export function readPage(page: PageText, pageNumber: number): { section: string | null; articles: PaperArticle[]; teasers: Teaser[] } {
-    const items = page.items.map((item) => ({ ...item, str: item.str.replace(NOT_TEXT, '') })).filter((item) => item.str.trim())
+    // Empty characters (\u0000, where a font had no glyph) go too.
+    const items = page.items
+        .map((item) => ({ ...item, str: item.str.replace(NOT_TEXT, '').replaceAll('\u0000', '') }))
+        .filter((item) => item.str.trim())
     const body = bodySize(items)
     const lines = toLines(items, findGutters(items, page.width, page.height, body))
     const blocks = toBlocks(lines).filter((b) => !PRINT_CODE.test(b.text) && !AD.test(b.text))
@@ -378,7 +381,8 @@ function inColumns(blocks: Block[], body: number): Block[] {
 
 /** Long runs of text into readable paragraphs, at sentence ends roughly every few lines. */
 function splitParagraphs(text: string): string[] {
-    const sentences = text.match(/[^.!?]+[.!?]+["”’)]*\s*|[^.!?]+$/g) ?? [text]
+    // Sentences end at . ! ? and, in Hindi, at the danda (।).
+    const sentences = text.match(/[^.!?।]+[.!?।]+["”’)]*\s*|[^.!?।]+$/g) ?? [text]
     const paragraphs: string[] = []
     let current = ''
     for (const sentence of sentences) {
@@ -422,14 +426,25 @@ const titleCase = (text: string): string =>
         .map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w))
         .join(' ')
 
-/** Whether a paper's text can be used as it is: enough of it, and mostly real letters. Scanned pages have almost
- *  none; papers with protected fonts give symbols instead of letters ("!\"#$!%%&'("). Either way: needs OCR. */
-export function isReadable(pages: PageText[]): boolean {
+/** Whether a paper's text can be used as it is: enough of it, and mostly real letters (in Devanagari, for a Hindi
+ *  paper). Scanned pages have almost none; papers with protected fonts give symbols instead of letters
+ *  ("!\"#$!%%&'("). Either way: needs OCR. */
+export function isReadable(pages: PageText[], { devanagari = false }: { devanagari?: boolean } = {}): boolean {
     const sample = pages.slice(0, 4).flatMap((p) => p.items.map((i) => i.str)).join('')
     const visible = sample.replace(/\s/g, '')
     if (visible.length < 1500) {
         return false
     }
-    const letters = visible.match(/\p{L}/gu)?.length ?? 0
-    return letters / visible.length > 0.7
+    // Letters with their marks: Hindi's vowel signs (ि ी ं …) are marks, not letters, in Unicode.
+    const letters = visible.match(/[\p{L}\p{M}]/gu)?.length ?? 0
+    if (letters / visible.length <= 0.7) {
+        return false
+    }
+    // A Hindi paper set in an old font (Kruti Dev, Chanakya) gives Latin letters in place of Hindi ones: words, but
+    // not the paper's.
+    if (devanagari) {
+        const hindi = visible.match(/[\u0900-\u097F]/g)?.length ?? 0
+        return hindi / letters > 0.5
+    }
+    return true
 }

@@ -16,7 +16,9 @@ const TARGET_WIDTH = 2400
 export async function readScannedPages(
     pdfjs: typeof PdfJs,
     data: Uint8Array,
-    onProgress?: (done: number, total: number) => void
+    onProgress?: (done: number, total: number) => void,
+    /** The paper's language, when it isn't the student's own ("hi" for a Hindi paper). */
+    language?: string
 ): Promise<PageText[]> {
     const task = pdfjs.getDocument({ data })
     const doc = await task.promise
@@ -39,7 +41,7 @@ export async function readScannedPages(
                 throw new Error("Ben couldn't draw this paper's pages to read them.")
             }
             try {
-                pages.push(ocrPageText(await ocrImage(new Uint8Array(await image.arrayBuffer())), scale))
+                pages.push(ocrPageText(await ocrImage(new Uint8Array(await image.arrayBuffer()), language), scale))
             } catch (e) {
                 // The Rust side answers with a message for the student ("Windows can't read text in your language…").
                 throw e instanceof Error ? e : new Error(String(e))

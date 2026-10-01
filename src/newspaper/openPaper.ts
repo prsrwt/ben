@@ -25,7 +25,11 @@ const papers = new Map<string, Promise<{ paper: Paper; pages: number }>>()
 
 export type Progress = (done: number, total: number) => void
 
-async function read(path: string, onProgress?: Progress): Promise<{ paper: Paper; pages: number }> {
+/** Papers printed in Hindi (as the Library names them): their text must be Devanagari, and a scan is read as Hindi. */
+const HINDI_PAPERS = new Set(['Dainik Jagran', 'Amar Ujala', 'Dainik Bhaskar', 'Navbharat Times', 'Hindustan', 'Jansatta', 'Rajasthan Patrika', 'Prabhat Khabar'])
+const isHindi = (paper: string | null, title: string): boolean => (paper !== null && HINDI_PAPERS.has(paper)) || /[\u0900-\u097F]/.test(title)
+
+async function read(path: string, hindi: boolean, onProgress?: Progress): Promise<{ paper: Paper; pages: number }> {
     let bytes: Uint8Array
     try {
         // Through the asset protocol, which the Library allows for the folders the student chose.
@@ -39,9 +43,9 @@ async function read(path: string, onProgress?: Progress): Promise<{ paper: Paper
     }
     // PDF.js takes over the bytes it's given, so the first reading gets a copy.
     let pages = await readPdfText(pdfjs, bytes.slice())
-    if (!isReadable(pages)) {
-        pages = await readScannedPages(pdfjs, bytes, onProgress)
-        if (!isReadable(pages)) {
+    if (!isReadable(pages, { devanagari: hindi })) {
+        pages = await readScannedPages(pdfjs, bytes, onProgress, hindi ? 'hi' : undefined)
+        if (!isReadable(pages, { devanagari: hindi })) {
             throw new Error("Ben couldn't make out the words on this paper's pages. Open it from the Library to see the PDF.")
         }
     }
@@ -53,11 +57,15 @@ async function read(path: string, onProgress?: Progress): Promise<{ paper: Paper
 }
 
 /** A paper's sections and stories, and how many pages it has. Rejects with a message fit to show the student.
- *  `onProgress` hears how many pages of a scanned paper have been read. */
-export function loadPaper(path: string, onProgress?: Progress): Promise<{ paper: Paper; pages: number }> {
+ *  `paper` and `title` are what the Library knows of it (a Hindi paper is read as Hindi); `onProgress` hears how
+ *  many pages of a scanned paper have been read. */
+export function loadPaper(
+    { path, paper, title }: { path: string; paper: string | null; title: string },
+    onProgress?: Progress
+): Promise<{ paper: Paper; pages: number }> {
     let reading = papers.get(path)
     if (!reading) {
-        reading = read(path, onProgress)
+        reading = read(path, isHindi(paper, title), onProgress)
         // A paper that failed is read again next time (the file may have been fixed or moved back).
         reading.catch(() => papers.delete(path))
         papers.set(path, reading)
@@ -71,6 +79,6 @@ export function loadPaper(path: string, onProgress?: Progress): Promise<{ paper:
 /** One of a paper's stories as a Reader article (the address names the story). */
 export async function openPaper(url: string): Promise<Article> {
     const file = paperFile(url)
-    const { paper } = await loadPaper(file.path)
+    const { paper } = await loadPaper(file)
     return storyArticle(paper, file.story ?? 0, { url, site: file.paper ?? file.title })
 }
