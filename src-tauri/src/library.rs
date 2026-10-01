@@ -271,6 +271,13 @@ pub struct LibraryState {
     watcher: Mutex<Option<notify::RecommendedWatcher>>,
 }
 
+impl LibraryState {
+    /// Whether a file is inside one of the folders the student chose (the only files Ben opens or reads by path).
+    pub fn allows(&self, file: &Path) -> bool {
+        self.folders.lock().unwrap().iter().any(|folder| file.starts_with(folder))
+    }
+}
+
 /// Starts watching the chosen folders (replacing any earlier set): the UI hears "library-changed" when files
 /// appear, change or go. Also lets those folders' PDFs and photos be shown inside Ben.
 #[tauri::command]
@@ -297,9 +304,7 @@ pub fn library_watch(app: AppHandle, state: State<'_, LibraryState>, folders: Ve
 /// Opens a file in its usual program (Word, PowerPoint…). Only files inside the watched folders.
 #[tauri::command]
 pub fn library_open(state: State<'_, LibraryState>, path: String) -> Result<(), String> {
-    let file = PathBuf::from(&path);
-    let allowed = state.folders.lock().unwrap().iter().any(|folder| file.starts_with(folder));
-    if !allowed {
+    if !state.allows(Path::new(&path)) {
         return Err("not in a Library folder".into());
     }
     tauri_plugin_opener::open_path(path, None::<&str>).map_err(|e| e.to_string())

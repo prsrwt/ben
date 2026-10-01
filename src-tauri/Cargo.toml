@@ -32,3 +32,8 @@ zip = { version = "8.6.0", default-features = false, features = ["deflate"] }
 notify = "8.2.0"
 tauri-plugin-dialog = "2.8.1"
 tauri-plugin-opener = "2.7.0"
+
+# Windows' own text recognition (OCR) for scans and photos (src/ocr.rs). Tauri already uses this crate, so it
+# adds only these API features, not a new download.
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.62", features = ["Foundation", "Foundation_Collections", "Globalization", "Graphics_Imaging", "Media_Ocr", "Storage_Streams"] }

@@ -1,4 +1,5 @@
 mod library;
+mod ocr;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -17,6 +18,8 @@ pub fn run() {
       library::library_save_index,
       library::library_watch,
       library::library_open,
+      ocr::ocr_image,
+      ocr::ocr_file,
     ])
     .setup(|app| {
       if cfg!(debug_assertions) {
